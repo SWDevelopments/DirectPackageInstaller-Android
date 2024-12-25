@@ -24,6 +24,7 @@
         <PackageReference Include="System.Management" Version="8.0.0" />
     </ItemGroup>
     <ItemGroup>
+      <ProjectReference Include="..\..\DHCPServer\DHCPServer\Library\Library.csproj" />
       <ProjectReference Include="..\..\HttpServerLite\src\HttpServerLite\HttpServerLite.csproj" />
       <ProjectReference Include="..\..\LibOrbisPkg\LibOrbisPkg.Core\LibOrbisPkg.Core.csproj" />
     </ItemGroup>

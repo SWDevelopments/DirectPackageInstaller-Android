@@ -91,6 +91,13 @@ namespace DirectPackageInstaller.ViewModels
             set => this.RaiseAndSetIfChanged(ref _CNLService, value);
         }
 
+        private bool _DHCPService = false;
+        public bool DHCPService
+        {
+            get => _DHCPService;
+            set => this.RaiseAndSetIfChanged(ref _DHCPService, value);
+        }
+
         private List<PkgParamInfo> _PKGParams = new List<PkgParamInfo>();
         public List<PkgParamInfo> PKGParams
         {

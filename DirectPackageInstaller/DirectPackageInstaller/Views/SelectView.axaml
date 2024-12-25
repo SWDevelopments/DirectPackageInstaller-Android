@@ -16,7 +16,7 @@
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        <Label Content="PKG:"/>
+        <Label Content="{Binding Caption}"/>
         <ComboBox Grid.Column="1" Name="Items" ItemsSource="{Binding Options}"/>
     </Grid>
     <UserControl.Styles>

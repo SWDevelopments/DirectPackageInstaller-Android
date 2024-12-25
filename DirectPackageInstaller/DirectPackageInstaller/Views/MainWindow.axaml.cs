@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using Acornima.Ast;
 using Avalonia;
 using Avalonia.Controls;
 using DirectPackageInstaller.Tasks;
@@ -13,12 +14,12 @@ namespace DirectPackageInstaller.Views
         public MainWindow()
         {
             Instance = this;
-            
+
             InitializeComponent();
 
             View = this.Find<MainView>("View");
             View.DataContext = new MainViewModel();
-            
+
             Opened += MainWindowOpened;
             Closing += MainWindowClosing;
         }
@@ -32,7 +33,7 @@ namespace DirectPackageInstaller.Views
         }
 
         private bool ForceClose = false;
-        
+
         private async void MainWindowClosing(object? sender, CancelEventArgs e)
         {
             try
@@ -53,11 +54,19 @@ namespace DirectPackageInstaller.Views
                     e.Cancel = true;
                     return;
                 }
-            } 
-            catch {}
+            }
+            catch { }
 
-           App.SaveSettings();
-           await Installer.Payload.StopServer();
+            View.Status.Text = "Shutting Down Servers...";
+
+            App.SaveSettings();
+            await Installer.Payload.StopServer();
+
+            if (View.DHCP != null)
+            {
+                View.DHCP.Stop();
+                await App.SetupDHCPNetwork();
+            }
         }
     }
 }

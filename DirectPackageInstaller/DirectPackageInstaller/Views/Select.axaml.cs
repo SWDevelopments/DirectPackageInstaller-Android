@@ -10,6 +10,20 @@ namespace DirectPackageInstaller.Views
         private string[] Choices;
         public string Choice { get; private set; }
 
+
+        public SelectViewModel ViewModel { 
+            get {
+                if (View == null)
+                    View = this.Find<SelectView>("View");
+
+                if (View!.DataContext == null)
+                    View.DataContext = new SelectViewModel();
+
+                return (SelectViewModel)View.DataContext;
+            } 
+        }
+        public string Caption { get => ViewModel.Caption; set => ViewModel.Caption = value; } 
+
         public Select(string[] Choices) : this()
         {
             this.Choices = Choices;

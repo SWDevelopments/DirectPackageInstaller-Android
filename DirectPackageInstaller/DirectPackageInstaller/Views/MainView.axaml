@@ -39,6 +39,11 @@
 						<CheckBox BorderThickness="0" IsChecked="{Binding CNLService, Mode=TwoWay}"/>
 					</MenuItem.Icon>
 				</MenuItem>
+				<MenuItem Header="_DHCP Server" Name="btnDHCPService" >
+					<MenuItem.Icon>
+						<CheckBox BorderThickness="0" IsChecked="{Binding DHCPService, Mode=TwoWay}"/>
+					</MenuItem.Icon>
+				</MenuItem>
 				<MenuItem Header="_IP Address">
 					<Grid Margin="0">
 						<Grid.ColumnDefinitions>

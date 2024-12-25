@@ -4,5 +4,4 @@ namespace DirectPackageInstaller.ViewModels;
 
 public class ViewModelBase : ReactiveObject
 {
-    
 }

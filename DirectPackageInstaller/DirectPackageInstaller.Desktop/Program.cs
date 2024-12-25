@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -32,7 +33,18 @@ namespace DirectPackageInstaller.Desktop
         [STAThread]
         public static void Main(string[] args)
         {
-            if (args == null || args.Length == 0){
+            bool UILaunch = args == null || args.Length == 0;
+
+            if (!UILaunch)
+            {
+                UILaunch = args!.Select(x => x
+                    .Trim(' ', '-', '\\', '/')
+                    .Equals("ui", StringComparison.InvariantCultureIgnoreCase)
+                ).Any();
+            }
+
+            if (UILaunch)
+            {
                 TempHelper.Clear();
                 BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); 
                 TempHelper.Clear();

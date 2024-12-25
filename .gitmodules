@@ -4,3 +4,6 @@
 [submodule "HttpServerLite"]
 	path = HttpServerLite
 	url = https://github.com/marcussacana/HttpServerLite
+[submodule "DHCPServer"]
+	path = DHCPServer
+	url = https://github.com/jpmikkers/DHCPServer/

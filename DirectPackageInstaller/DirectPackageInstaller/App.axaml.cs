@@ -15,7 +15,9 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using DirectPackageInstaller.Host;
 using DirectPackageInstaller.IO;
+using DirectPackageInstaller.Others;
 using DirectPackageInstaller.ViewModels;
 using DirectPackageInstaller.Views;
 
@@ -58,6 +60,48 @@ namespace DirectPackageInstaller
             
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
+                try
+                {
+                    for (int i = 0; i < desktop.Args?.Length; i++)
+                    {
+                        var currentArg = desktop.Args[i].Trim(' ', '-', '\\', '/');
+
+                        string? currentArgParam = null;
+                        if (currentArg.Contains("="))
+                        {
+                            currentArgParam = currentArg.Split('=').Last();
+                            currentArg = currentArg.Split('=').First();
+                        }
+
+                        switch (currentArg.ToLowerInvariant())
+                        {
+                            case "static":
+                                {
+                                    var task = SetupAdapter(currentArgParam, true).ConfigureAwait(false);
+                                    var awaiter = task.GetAwaiter();
+                                    awaiter.GetResult();
+                                    desktop.Shutdown(0);
+                                }
+                                return;
+
+                            case "dhcp":
+                                {
+                                    var task = SetupAdapter(currentArgParam, false).ConfigureAwait(false);
+                                    var awaiter = task.GetAwaiter();
+                                    awaiter.GetResult();
+                                    desktop.Shutdown(0);
+                                }
+                                return;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    File.WriteAllText("DPI-CMDLine.log", ex.ToString());
+                    desktop.Shutdown(-1);
+                    return;
+                }
+
 #if DEBUG && DEBUG_SINGLEVIEW
                 IsSingleView = true;
                 desktop.MainWindow = new DebugSingleView
@@ -99,7 +143,9 @@ namespace DirectPackageInstaller
                 IniWriter.SetValue("Concurrency", SegmentedStream.DefaultConcurrency.ToString());
                 IniWriter.SetValue("ShowError", Config.ShowError.ToString());
                 IniWriter.SetValue("SkipUpdateCheck", Config.SkipUpdateCheck.ToString());
-                
+                IniWriter.SetValue("EthernetAdapter", Config.EthernetAdapter);
+                IniWriter.SetValue("EnableDHCP", Config.EnableDHCP.ToString());
+
                 IniWriter.Save();
             } catch {}
         }
@@ -210,7 +256,128 @@ namespace DirectPackageInstaller
 
             return Failed;
         }
-        
+
+        public static void GetStartupParams(out string? Executable, out string? CommandLine)
+        {
+            Executable =  CommandLine = null;
+
+            using var currentProc = Process.GetCurrentProcess();
+            if (currentProc.MainModule == null)
+                return;
+
+            Executable = currentProc.MainModule.FileName;
+            CommandLine = "";
+
+            if (Path.GetFileNameWithoutExtension(Executable).Equals("dotnet", StringComparison.InvariantCultureIgnoreCase))
+            {
+                var Asm = Assembly.GetEntryAssembly() ?? Assembly.GetCallingAssembly();
+                CommandLine = $"\"{Asm.Location}\" ";
+            }
+        }
+
+        private static ProcessStartInfo? CreateStartupInfo()
+        {
+            GetStartupParams(out var exe, out var cmd);
+
+            if (exe == null)
+                return null;
+
+            return new ProcessStartInfo()
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                CreateNoWindow = true,
+                FileName = exe,
+                Arguments = $"{cmd}-UI "
+            };
+        }
+
+        internal static async Task<bool> SetupStaticNetwork()
+        {
+            if (IsWindows)
+            {
+                var startInfo = CreateStartupInfo();
+
+                if (startInfo == null)
+                    return false;
+
+                startInfo.Arguments += $"-Static={Config.EthernetAdapter}";
+
+                var proc = Process.Start(startInfo);
+                
+                if (proc == null)
+                    return false;
+
+                await proc.WaitForExitAsync();
+                return proc.ExitCode != -1;
+            }
+
+            return false;
+        }
+
+        internal static async Task<bool> SetupDHCPNetwork()
+        {
+            if (IsWindows)
+            {
+                var startInfo = CreateStartupInfo();
+
+                if (startInfo == null)
+                    return false;
+
+                startInfo.Arguments += $"-DHCP={Config.EthernetAdapter}";
+
+                var proc = Process.Start(startInfo);
+
+                if (proc == null)
+                    return false;
+
+                await proc.WaitForExitAsync();
+                return proc.ExitCode != -1;
+            }
+
+            return false;
+        }
+
+        private async Task SetupAdapter(string? AdapterName, bool SetStatic)
+        {
+            if (AdapterName == null)
+                throw new Exception("Adapter Name Required");
+
+            INetworkManagement? AdapterHelper = null;
+
+            if (IsWindows)
+            {
+                AdapterHelper = new WindowsNetworkManagement();
+            }
+            else
+            {
+                throw new PlatformNotSupportedException("Network Adapter Configuration is Windows only");
+            }
+
+            AdapterHelper.Adapter = AdapterName;
+
+            if (SetStatic)
+            {
+
+                if (!await AdapterHelper.SetIP(DHCPHost.Address, DHCPHost.NetMask).ConfigureAwait(false))
+                {
+                    throw new Exception("Failed to set the Adapter IP");
+                }
+
+                if (!await AdapterHelper.SetGateway(DHCPHost.Gateway).ConfigureAwait(false))
+                {
+                    throw new Exception("Failed to set the Adapter Gateway");
+                }
+            }
+            else
+            {
+                if (!await AdapterHelper.SetDHCPMode().ConfigureAwait(false))
+                {
+                    throw new Exception("Failed to set the adapter to DHCP mode.");
+                }
+            }
+        }
+
         internal static Settings Config = new Settings();
 
         internal static WebClientWithCookies WebClient = new WebClientWithCookies();
@@ -220,6 +387,7 @@ namespace DirectPackageInstaller
         public static bool? _IsAndroid;
         internal static bool IsAndroid => _IsAndroid ??= SelfUpdate.MainExecutable == null;
         internal static bool IsOSX => RuntimeInformation.IsOSPlatform(OSPlatform.OSX);
+        internal static bool IsWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
         public static Func<string?> GetClipboardText = null;
 

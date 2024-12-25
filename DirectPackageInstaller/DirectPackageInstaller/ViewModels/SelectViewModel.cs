@@ -12,5 +12,12 @@ namespace DirectPackageInstaller.ViewModels
         {
             get => _Options; set => this.RaiseAndSetIfChanged(ref _Options, value);
         }
+
+        private string _Caption = "PKG:";
+        public string Caption
+        {
+            get => _Caption;
+            set => this.RaiseAndSetIfChanged(ref _Caption, value);
+        }
     }
 }

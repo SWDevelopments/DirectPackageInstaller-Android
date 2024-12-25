@@ -47,7 +47,7 @@ namespace DirectPackageInstaller
 
         const string UpdateList = "Update.ini";
 
-        public const string CurrentVersion = "6.2.13";
+        public const string CurrentVersion = "8.0.0";
         
         static Version CurrentVer = new Version(CurrentVersion);
 
@@ -122,7 +122,10 @@ namespace DirectPackageInstaller
             catch (Exception e)
             {
                 Console.WriteLine(e);
+#if !DEBUG
                 throw;
+#endif
+                return null;
             }
         }
         

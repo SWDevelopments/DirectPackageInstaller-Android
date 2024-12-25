@@ -81,7 +81,7 @@ Some cases run with `dotnet DirectPackageInstaller.Desktop.dll` might be necessa
 ### How It Works
 The tool it self is very simple, the Remote Package Installer have an API that allow you put packages from URLs into your PS4 download queue, the DirectPackageInstaller just use that API to push to your PS4 the download URL, helping only to you preview the PKG that you're installing.
 
-With that said, the tool can do more than that as well, the PS4 have a very poor speed to download things from the web, but that is limited to WAN connections, when he is downloading something from LAN connection he can reach best speeds, with that in mind this tool have an automatically proxy server that your PS4 will automatically use to download your PKG, and with help of this proxy the poor speed will be basically solved.
+With that said, the tool can do more than that as well, the PS4 have a very poor speed to download things from the web, but that is limited to WAN connections, when it is downloading something from LAN connection it can reach best speeds, with that in mind this tool have an automatically proxy server that your PS4 will automatically use to download your PKG, and with help of this proxy the poor speed will be basically solved.
 
 The tool can works without the Remote Package Installer if you want, for that, just enable your binloader and the DirectPackageInstaller will be able to tell how the package should be installed. If the Bin Loader server is running and the Remote Package Installer too, the DirectPackageInstaller will give priority to the Remote Package Installer.
 

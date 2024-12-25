@@ -25,6 +25,8 @@ using DirectPackageInstaller.ViewModels;
 using Image = Avalonia.Controls.Image;
 using Path = System.IO.Path;
 using Size = Avalonia.Size;
+using LibOrbisPkg.GP4;
+using Acornima.Ast;
 
 namespace DirectPackageInstaller.Views
 {
@@ -32,6 +34,8 @@ namespace DirectPackageInstaller.Views
     {
 
         public CNLServer CNL = new CNLServer();
+        public DHCPHost? DHCP = null;
+        public INetworkManagement? AdapterHelper = null;
 
         private Stream? PKGStream;
         
@@ -77,6 +81,7 @@ namespace DirectPackageInstaller.Views
             btnRealDebirdEnabled = this.Find<MenuItem>("btnRealDebirdEnabled");
             btnSegmentedDownload = this.Find<MenuItem>("btnSegmentedDownload");
             btnCNLService = this.Find<MenuItem>("btnCNLService");
+            btnDHCPService = this.Find<MenuItem>("btnDHCPService");
             btnExit = this.Find<MenuItem>("btnExit");
             btnLoad = this.Find<Button>("btnLoad");
             
@@ -87,6 +92,7 @@ namespace DirectPackageInstaller.Views
             btnRealDebirdEnabled.Click += BtnRealDebirdEnabledOnClick;
             btnSegmentedDownload.Click += BtnSegmentedDownloadOnClick;
             btnCNLService.Click += BtnCNLServiceOnClick;
+            btnDHCPService.Click += BtnDHCPServiceOnClick;
 
             btnLoad.Click += BtnLoadOnClick;
 
@@ -101,8 +107,9 @@ namespace DirectPackageInstaller.Views
 
             AddHandler(DragDrop.DragOverEvent, DragOver);
             AddHandler(DragDrop.DropEvent, DropEventEvent);
-        }
 
+            btnDHCPService.IsVisible = App.IsWindows;
+        }
         public async Task OnShown(MainWindow? Parent)
         {
             if (Model == null)
@@ -119,6 +126,9 @@ namespace DirectPackageInstaller.Views
             {
                 App.Config = new Settings();
                 var IniReader = new Ini(App.SettingsPath, "Settings");
+
+                App.Config.EthernetAdapter = IniReader.GetValue("EthernetAdapter");
+                App.Config.EnableDHCP = IniReader.GetBooleanValue("EnableDHCP");
 
                 App.Config.PS4IP = IniReader.GetValue("PS4IP");
                 App.Config.PCIP = IniReader.GetValue("PCIP");
@@ -157,10 +167,12 @@ namespace DirectPackageInstaller.Views
                     EnableCNL = true,
                     ShowError = false,
                     SkipUpdateCheck = false,
+                    EnableDHCP = false,
                     AllDebridApiKey = null,
                     RealDebridApiKey = null
                 };
 
+                var DHCPHint = "With DirectPackageInstaller your PS4 and PC can do a \"Plug And Play\" network connection just enable the DHCP Server option and select your network adapter if needed.";
                 var ProxyHint = "If your download speed is very slow, you can try enable the \"Proxy Downloads\" feature, since this feature has been created just to optimize the download speed.";
                 var CompressedHint = "When downloading directly from compressed files, you can't resume the download after the DirectPackageInstaller is closed, but before close the DirectPackageInstaller you still can pause and resume the download in your PS4.";
                 var AndroidHints = "Is recommended to keep your phone in charger to prevent any battery optimization problems.\nIf you're using MIUI, disable the battery optimizations manually in the app properties.";
@@ -168,11 +180,12 @@ namespace DirectPackageInstaller.Views
                 var ResumeHint = "Direct PKG urls, using the \"Proxy Download\" feature or not, can be resumed anytime by just selecting 'resume' in your PS4 download list.";
                 var IndirectDownloadHint = "When using the \"Proxy Downloads\" feature, the PS4 can't download the game alone and the DirectPackageInstaller must keep open.";
                 var DirectDownloadHint = "When using the direct download mode, you can turn off the computer or close the DirectPakcageInstaller and your PS4 will continue the download alone.";
-                var WelcomeText = $"Welcome. User, The focus of this tool is download PKGs from direct links but we have others minor features as well.\n\nGood to know:\n{DirectDownloadHint}\n\n{IndirectDownloadHint}\n\n{ResumeHint}\n\n{(App.IsAndroid ? AndroidHints : FirewallHint)}\n\n{CompressedHint}\n\n{ProxyHint}\n\nCreated by marcussacana";
+                var WelcomeText = $"Welcome. User, The focus of this tool is download PKGs from direct links but we have others minor features as well.\n\nGood to know:\n{DirectDownloadHint}\n\n{IndirectDownloadHint}\n\n{ResumeHint}\n\n{(App.IsAndroid ? AndroidHints : FirewallHint)}\n\n{CompressedHint}\n\n{ProxyHint}\n\n{(App.IsWindows? DHCPHint  + "\n\n": "")}Created by marcussacana";
                 
                 await MessageBox.ShowAsync(WelcomeText, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
+             Model.DHCPService = App.Config.EnableDHCP;
              Model.CNLService = App.Config.EnableCNL;
              Model.ProxyMode = App.Config.ProxyDownload;
              Model.UseAllDebrid = App.Config.UseAllDebrid;
@@ -185,27 +198,12 @@ namespace DirectPackageInstaller.Views
              
             if (App.Config.SearchPS4 || string.IsNullOrEmpty(App.Config.PS4IP))
             {
-                _ = PS4Finder.StartFinder((PS4IP, PCIP) =>
-                {
-                    Dispatcher.UIThread.InvokeAsync(async () =>
-                    {
-                        if (!string.IsNullOrEmpty(Model.PS4IP))
-                        {
-                            if (Model.PS4IP == PS4IP.ToString() || await MessageBox.ShowAsync($"A new PS4 IP has been found ({PS4IP}), Update the PS4 IP?", "DirectPackageInstaller", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
-                                return;
-                        }
-                        Model.PS4IP = PS4IP.ToString();
-                        
-                        var NewPCIP = PCIP?.ToString() ?? IPHelper.FindLocalIP(PS4IP.ToString()) ?? "";
-                        if (!string.IsNullOrWhiteSpace(NewPCIP) && NewPCIP != "0.0.0.0")
-                            Model.PCIP = NewPCIP;
-                        
-                        RestartServer_OnClick(null, null);
+                _ = PS4Finder.StartFinder(OnClientFound());
+            }
 
-                        if (App.IsAndroid)
-                            App.SaveSettings();
-                    });
-                });
+            if (App.Config.EnableDHCP && !string.IsNullOrWhiteSpace(App.Config.EthernetAdapter))
+            {
+                await StartDHCP(App.Config.EthernetAdapter);
             }
 
             if (!string.IsNullOrEmpty(App.Config.PS4IP))
@@ -225,7 +223,7 @@ namespace DirectPackageInstaller.Views
                      });
                  }
              }
-             
+
              Model.PropertyChanged += ModelOnPropertyChanged;
              
              App.Callback(async () =>
@@ -257,7 +255,130 @@ namespace DirectPackageInstaller.Views
                  Environment.Exit(0);
              }
         }
-        
+
+        private Action<IPAddress, IPAddress?> OnClientFound()
+        {
+            return (PS4IP, PCIP) =>
+            {
+                Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    if (!string.IsNullOrEmpty(Model.PS4IP))
+                    {
+                        if (Model.PS4IP == PS4IP.ToString() || await MessageBox.ShowAsync($"A new PS4 IP has been found ({PS4IP}), Update the PS4 IP?", "DirectPackageInstaller", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
+                            return;
+                    }
+                    Model.PS4IP = PS4IP.ToString();
+
+                    var NewPCIP = PCIP?.ToString() ?? IPHelper.FindLocalIP(PS4IP.ToString()) ?? "";
+                    if (!string.IsNullOrWhiteSpace(NewPCIP) && NewPCIP != "0.0.0.0")
+                        Model.PCIP = NewPCIP;
+
+                    RestartServer_OnClick(null, null);
+
+                    if (App.IsAndroid)
+                        App.SaveSettings();
+                });
+            };
+        }
+
+        private async Task StartDHCP(string? DefaultAdapter = null)
+        {
+            if (DHCP?.Active ?? false) 
+                return;
+
+            if (AdapterHelper == null)
+            {
+                if (App.IsWindows)
+                {
+                    AdapterHelper = new WindowsNetworkManagement();
+                }
+                else
+                {
+                    if (Model != null)
+                        Model!.DHCPService = false;
+
+                    await MessageBox.ShowAsync("Currently, the DHCP Server is not supported in the current platform", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+
+            if (DefaultAdapter == null) {
+
+                await SetStatus("Analyzing Network Adapters...");
+
+                var Adapters = await AdapterHelper.GetValidAdapters();
+
+                if (Adapters.Count() == 1)
+                {
+                    AdapterHelper.Adapter = Adapters.Single();
+                }
+                else
+                {
+                    if (App.IsSingleView)
+                    {
+                        var ChoiceBox = Extensions.CreateInstance<SelectView>(new SelectViewModel());
+                        ((SelectViewModel)ChoiceBox.DataContext).Caption = "Adapter:";
+                        ChoiceBox.Initialize(null, Adapters, (n) =>
+                        {
+                            AdapterHelper.Adapter = n;
+                            SingleView.ReturnView(ChoiceBox);
+                        });
+
+                        await SingleView.CallView(ChoiceBox, true);
+                    }
+                    else
+                    {
+                        var ChoiceBox = new Select(Adapters);
+                        ChoiceBox.Caption = "Adapter:";
+                        if (await ChoiceBox.ShowDialogAsync() == DialogResult.OK)
+                            AdapterHelper.Adapter = ChoiceBox.Choice;
+                    }
+                }
+
+            }
+            else
+            {
+                AdapterHelper.Adapter = DefaultAdapter;
+            }
+
+            if (AdapterHelper.Adapter == null)
+            {
+                if (Model != null)
+                    Model!.DHCPService = false;
+
+                await MessageBox.ShowAsync("Failed to find the ethernet network adapter.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (DHCP == null)
+            {
+                DHCP = new DHCPHost();
+                DHCP.OnNewClient += OnClientFound();
+                DHCP.OnNewClient += async (a, b) => {
+                    await SetStatus($"Device Connected, IP: {a}");
+                };
+            }
+
+            App.Config.EthernetAdapter = AdapterHelper.Adapter;
+
+            await SetStatus("Initializing DHCP...");
+
+            if (!await App.SetupStaticNetwork())
+            {
+                if (Model != null)
+                    Model!.DHCPService = false;
+
+                await SetStatus("");
+
+                await MessageBox.ShowAsync("Failed to setup the network adapter.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            DHCP.StartInBackground();
+
+            await SetStatus("");
+        }
+
         private void OpenUrl(string url)
         {
             try
@@ -286,7 +407,39 @@ namespace DirectPackageInstaller.Views
                 }
             }
         }
-  
+        private async void BtnDHCPServiceOnClick(object? sender, RoutedEventArgs e)
+        {
+            if (Model == null)
+                return;
+
+            Model.DHCPService = !Model.DHCPService;
+
+            if (!Model.DHCPService)
+            {
+                if (DHCP != null)
+                {
+                    await SetStatus("Restoring Network Settings...");
+
+                    DHCP.Stop();
+                    await App.SetupDHCPNetwork();
+
+                    await SetStatus("");
+                }
+
+                DHCP?.Dispose();
+                DHCP = null;
+
+                App.Config.EthernetAdapter = "";
+            }
+            else
+            {
+                if (await MessageBox.ShowAsync("The DHCP Service will change your network settings, are you sure?\n\nNote: When you close the DirectPackageInstaller your network settings will be restored.", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
+                    await StartDHCP();
+                else
+                    Model.DHCPService = false;
+            }
+        }
+
         private async void BtnLoadOnClick(object? sender, RoutedEventArgs e)
         {
             if (e != null)
@@ -665,6 +818,9 @@ namespace DirectPackageInstaller.Views
                     break;
                 case "RealDebridApiKey":
                     App.Config.RealDebridApiKey = Model.RealDebridApiKey;
+                    break;
+                case "DHCPService":
+                    App.Config.EnableDHCP = Model.DHCPService;
                     break;
                 case "CNLService":
                     App.Config.EnableCNL = Model.CNLService;
@@ -1068,7 +1224,7 @@ namespace DirectPackageInstaller.Views
         }
 
 
-        private async Task SetStatus(string Status) {
+        public async Task SetStatus(string Status) {
             
             if (!Dispatcher.UIThread.CheckAccess())
             {

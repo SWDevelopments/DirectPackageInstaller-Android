@@ -8,6 +8,8 @@ namespace DirectPackageInstaller
 {
     public struct Settings
     {
+        public string EthernetAdapter;
+
         public string AllDebridApiKey;
         public string RealDebridApiKey;
         public string PS4IP;
@@ -19,6 +21,8 @@ namespace DirectPackageInstaller
         public bool ProxyDownload;
         public bool SegmentedDownload;
         public bool SkipUpdateCheck;
+
+        public bool EnableDHCP;
 
         public bool EnableCNL;
 
