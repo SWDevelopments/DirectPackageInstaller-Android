@@ -87,7 +87,7 @@ namespace DirectPackageInstaller.FileHosts
 
             var ADZ = HTML.Substring("name=\"adz\"").Substring("value=\"", "\"");
 
-            var PostData = $"adz={ADZ}&did=0&dl_no_ssl=off&dlinline=on";
+            var PostData = $"adz={ADZ}&dl_no_ssl=on&dlinline=on";
 
             if (Pass != null)
                 PostData += $"&pass={Pass}";
@@ -95,7 +95,8 @@ namespace DirectPackageInstaller.FileHosts
             HTML = PostString(URL, "application/x-www-form-urlencoded", PostData);
 
             HTML = HTML.Substring("ct_warn");
-            HTML = HTML.Substring("<div").Substring("<a", "</a>");
+            HTML = HTML.Substring("<div", "btn-orange");
+            HTML = HTML.Substring(HTML.LastIndexOf("<a"));
 
             var FinalUrl = HTML.Substring("href=\"", "\"");
 
