@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using Android.App;
 using Android.Content;
 using Android.OS;
-using Microsoft.VisualBasic;
 using Exception = Java.Lang.Exception;
+using ForegroundServiceType = Android.Content.PM.ForegroundService;
 
 namespace DirectPackageInstaller.Android;
 
-[Service]
+[Service(ForegroundServiceType = ForegroundServiceType.TypeDataSync)]
 public class ForegroundService : Service
 {
     private static Dictionary<string, Action> IntentActionMap = new();
@@ -99,14 +99,17 @@ public class ForegroundService : Service
             try
             {
                 var Intent = new Intent(this, typeof(NotificationReceiver));
-                PendingIntentFlags Flags = Build.VERSION.SdkInt >= BuildVersionCodes.S ? PendingIntentFlags.Mutable : 0;
+                PendingIntentFlags Flags = Build.VERSION.SdkInt >= BuildVersionCodes.S ? PendingIntentFlags.Immutable : 0;
                 var pendingIntent = PendingIntent.GetBroadcast(this, 0, Intent, Flags);
                 
                 var Notification = new Notification.Builder(this, "ServiceChannel");
                 Notification.SetContentIntent(pendingIntent);
                 Notification.SetContentText("A thread is running.");
 
-                StartForeground(NotificationID, Notification.Build());
+                if (Build.VERSION.SdkInt < BuildVersionCodes.Tiramisu)
+                    StartForeground(NotificationID, Notification.Build());
+                else
+                    StartForeground(NotificationID, Notification.Build(), ForegroundServiceType.TypeDataSync);
             }
             catch (Exception ex)
             {
@@ -119,10 +122,11 @@ public class ForegroundService : Service
     {
         if (Build.VERSION.SdkInt >= BuildVersionCodes.O)
         {
+            PendingIntentFlags Flags = Build.VERSION.SdkInt >= BuildVersionCodes.S ? PendingIntentFlags.Immutable : 0;
             NotificationManager.FromContext(this)
                 .Notify(NotificationID, new Notification.Builder(this, "ServiceChannel")
                     .SetContentIntent(PendingIntent.GetBroadcast(this, 0,
-                        new Intent(this, typeof(NotificationReceiver)), 0))
+                        new Intent(this, typeof(NotificationReceiver)), Flags))
                     .SetContentText("A thread is stopped.")
                     .Build());
         }

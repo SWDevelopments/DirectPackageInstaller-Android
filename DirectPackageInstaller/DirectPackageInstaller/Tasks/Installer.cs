@@ -13,6 +13,8 @@ using DirectPackageInstaller.Host;
 using DirectPackageInstaller.IO;
 using DirectPackageInstaller.Others;
 using SharpCompress.Archives;
+using System.Net.Http;
+using System.Net.Http.Json;
 
 namespace DirectPackageInstaller.Tasks
 {
@@ -208,45 +210,36 @@ namespace DirectPackageInstaller.Tasks
         {
             try
             {
-                var Request = (HttpWebRequest)WebRequest.Create($"http://{Config.PS4IP}:12800/api/install");
-                Request.Method = "POST";
-                //Request.ContentType = "application/json";
+                using var client = new HttpClient();
+                var requestUri = $"http://{Config.PS4IP}:12800/api/install";
+
 
                 var EscapedURL = HttpUtility.UrlEncode(URL.Replace("https://", "http://"));
                 var JSON = $"{{\"type\":\"direct\",\"packages\":[\"{EscapedURL}\"]}}";
 
-                var Data = Encoding.UTF8.GetBytes(JSON);
-                Request.ContentLength = Data.Length;
+                var content = new StringContent(JSON, Encoding.UTF8);
+                
+                var Response = await client.PostAsync(requestUri, content);
 
-                await using (Stream Stream = await Request.GetRequestStreamAsync())
+                using var Buffer = new MemoryStream();
+                await Response.Content.CopyToAsync(Buffer);
+
+                var Result = Encoding.UTF8.GetString(Buffer.ToArray());
+
+                if (Result.Contains("\"success\""))
                 {
-                    await Stream.WriteAsync(Data);
-                    using (var Resp = await Request.GetResponseAsync())
-                    {
-                        await using (var RespStream = Resp.GetResponseStream())
-                        {
-                            var Buffer = new MemoryStream();
-                            await RespStream.CopyToAsync(Buffer);
+                    if (!Silent)
+                        await MessageBox.ShowAsync("Package Sent!", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-                            var Result = Encoding.UTF8.GetString(Buffer.ToArray());
+                    return true;
+                }
+                else
+                {
+                    if (Result.Contains("0x80990085"))
+                        Result += "\nVerify if your PS4 have free space.";
 
-                            if (Result.Contains("\"success\""))
-                            {
-                                if (!Silent)
-                                    await MessageBox.ShowAsync("Package Sent!", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                                return true;
-                            }
-                            else
-                            {
-                                if (Result.Contains("0x80990085"))
-                                    Result += "\nVerify if your PS4 have free space.";
-
-                                await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                                return false;
-                            }
-                        }
-                    }
+                    await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -267,7 +260,7 @@ namespace DirectPackageInstaller.Tasks
                 }
 
                 await File.WriteAllTextAsync(Path.Combine(App.WorkingDirectory, "DPI-ERROR.log"), ex.ToString());
-                await MessageBox.ShowAsync("Failed:\n" + Result == null ? ex.ToString() : Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                await MessageBox.ShowAsync("Failed:\n" + (Result == null ? ex.ToString() : Result), "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
         }

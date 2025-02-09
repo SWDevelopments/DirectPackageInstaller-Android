@@ -8,7 +8,6 @@ using Android.Content.PM;
 using Android.Net;
 using Android.Net.Wifi;
 using Android.OS;
-using AndroidX.Core.Content;
 using Avalonia.Android;
 using Avalonia;
 using Avalonia.ReactiveUI;
@@ -16,6 +15,13 @@ using Java.Lang;
 using Application = Android.App.Application;
 using File = Java.IO.File;
 using System.Linq;
+using AndroidX.Core.Content;
+using Android.Util;
+using Java.Net;
+using Android.Systems;
+using System.Net;
+using AndroidX.Core.App;
+using DynamicData;
 
 [assembly: Application(UsesCleartextTraffic = true)]
 
@@ -42,13 +48,18 @@ namespace DirectPackageInstaller.Android
 
             if (Instances++ == 0)
             {
-                SetupEnv();
 
-                var Permissions = new[] {
+                List<string> Permissions = new () {
                     Manifest.Permission.ReadExternalStorage,
                     Manifest.Permission.WriteExternalStorage,
                     Manifest.Permission.ManageExternalStorage
                 };
+
+
+                if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu)
+                {
+                    Permissions.Add(Manifest.Permission.PostNotifications);
+                }
 
                 var MissingPermissions = Permissions.Where(x => CheckSelfPermission(x) != Permission.Granted);
 
@@ -66,6 +77,60 @@ namespace DirectPackageInstaller.Android
                     StartActivity(Install);
                 };
 
+                App.GetIPAddresses = () =>
+                {
+                    if (Build.VERSION.SdkInt >= BuildVersionCodes.Q)
+                    {
+                        using ConnectivityManager cm = (ConnectivityManager)Application.Context.GetSystemService(Context.ConnectivityService);
+
+                        if (cm != null) {
+                            Network[] networks = cm.GetAllNetworks();
+                            var Props = networks.Select(x => cm.GetLinkProperties(x));
+
+                            if (Props != null)
+                                return Props
+                                .SelectMany(x => x!.LinkAddresses.ToArray())
+                                .Where(x=> x.Address is Inet4Address)
+                                .Select(x=> (x.Address as Inet4Address).HostAddress)
+                                .ToArray();
+                            
+                        }
+                    }
+
+                    return new string[0];
+                };
+
+                App.GetBroadcastAddress = (string IP) =>
+                {
+                    if (Build.VERSION.SdkInt >= BuildVersionCodes.Q)
+                    {
+                        using ConnectivityManager cm = (ConnectivityManager)Application.Context.GetSystemService(Context.ConnectivityService);
+
+                        if (cm != null)
+                        {
+                            var address = Inet4Address.GetByName(IP);
+                            var netInterface = NetworkInterface.GetByInetAddress(address);
+                            var addresses = netInterface.InterfaceAddresses;
+
+                            var entries = addresses.Select(x => x.Broadcast).ToArray();
+
+                            var results = entries
+                            .Where(x => x != null)
+                            .Select(x => x.HostAddress).ToArray();
+
+                            if (results.Any())
+                            {
+                                return results.First();
+                            }
+
+                            return IPAddress.Broadcast.ToString();
+                        }
+                    }
+
+                    return string.Empty;
+                };
+
+
                 ForegroundService.StartService(this, null);
             }
         }
@@ -79,13 +144,30 @@ namespace DirectPackageInstaller.Android
 
             App.GetClipboardText = () =>
             {
+                if (ClipboardManager == null)
+                    return null;
+
                 var PrimaryClip = ClipboardManager.PrimaryClip;
+
+                if (PrimaryClip == null)
+                    return null;
+
                 if (PrimaryClip.ItemCount != 1)
                     return null;
 
                 var ClipItem = PrimaryClip.GetItemAt(0);
+
+                if (ClipItem == null)
+                    return null;
+
                 return ClipItem.CoerceToText(null);
             };
+
+            if (Application == null)
+                throw new NullPointerException("Failed to get the application context");
+
+            //https://stackoverflow.com/a/77948201
+            System.AppContext.SetSwitch("System.Reflection.NullabilityInfoContext.IsSupported", true);
 
             var CacheDirs = Application.GetExternalCacheDirs();
 
@@ -154,7 +236,7 @@ namespace DirectPackageInstaller.Android
 
             await Source.Task;
         }
-        
+
         public async Task IgnoreBatteryOptimizations()
         {
             PowerManager? PowerMan = (PowerManager?)GetSystemService(PowerService);
@@ -207,7 +289,7 @@ namespace DirectPackageInstaller.Android
         {
             try
             {
-                System.IO.File.WriteAllText(Path.Combine(App.WorkingDirectory, "DPI-AndroidCrash.log"), ex.ToString());
+                System.IO.File.WriteAllText(Path.Combine(App.WorkingDirectory, "DPI-AndroidCrash.log"), $"SDK: {Build.VERSION.SdkInt}\n" + ex.ToString());
             }
             catch
             {

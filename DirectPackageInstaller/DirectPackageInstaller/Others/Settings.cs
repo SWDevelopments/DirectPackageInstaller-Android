@@ -15,6 +15,8 @@ namespace DirectPackageInstaller
         public string PS4IP;
         public string PCIP;
 
+        public int? PayloadPort;
+
         public bool UseAllDebrid;
         public bool UseRealDebrid;
         public bool SearchPS4;

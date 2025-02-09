@@ -35,7 +35,7 @@ namespace DirectPackageInstaller.Host
 
             URL = Installer.Server.RegisterJSON(URL, PCIP, Installer.CurrentPKG, AutoSplit);
 
-            if (!await EnsureServer(PS4IP))
+            if (!await EnsureServer(PCIP, PS4IP))
                 return false;
 
             if (!EnsureClient(PCIP))
@@ -45,13 +45,17 @@ namespace DirectPackageInstaller.Host
             while (Queue.Count == 0 && (DateTime.Now - WaitBegin).TotalSeconds < 10)
             {
                 if (!ServerRunning)
-                    await EnsureServer(PS4IP);
+                    await EnsureServer(PCIP, PS4IP);
 
                 await Task.Delay(100);
             }
 
-            if (Queue.Count == 0)
+            if (Queue.Count == 0) {
+                ServiceSocket?.Dispose();
+                ServiceSocket = null;
+                ServerRunning = false;
                 return false;
+            }
 
 
             var PKGInfoSocket = Queue.Dequeue();
@@ -167,12 +171,24 @@ namespace DirectPackageInstaller.Host
                 PayloadSocket.ReceiveTimeout = 3000;
                 PayloadSocket.SendTimeout = 3000;
 
+                CancellationTokenSource CToken = new CancellationTokenSource();
+                CToken.CancelAfter(3000);
+
                 try
                 {
-                    await PayloadSocket.ConnectAsync(new IPEndPoint(IPAddress.Parse(IP), Port));
+                    var Endpoint = new IPEndPoint(IPAddress.Parse(IP), Port);
+
+                    if (App.IsAndroid)
+                        PayloadSocket.Connect(Endpoint);
+                    else
+                        await PayloadSocket.ConnectAsync(Endpoint);
                     break;
                 }
-                catch { }
+                catch (Exception ex) {
+#if DEBUG
+                    await MessageBox.ShowAsync("try conn err \n" + ex.ToString());
+#endif
+                }
             }
 
             if (!PayloadSocket!.Connected && Retry)
@@ -189,30 +205,43 @@ namespace DirectPackageInstaller.Host
         /// </summary>
         /// <param name="PS4IP"></param>
         /// <returns></returns>
-        private async Task<bool> EnsureServer(string PS4IP)
+        private async Task<bool> EnsureServer(string PCIP, string PS4IP)
         {
-            if (!ServerRunning)
+            try
             {
-                if (ServiceSocket == null)
+                if (!ServerRunning)
                 {
-                    ServiceSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    if (ServiceSocket == null)
+                    {
+                        ServiceSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
-                    ServiceSocket.Bind(new IPEndPoint(IPAddress.Any, 0));
-                    ServiceSocket.Listen();
+                        if (App.IsAndroid)
+                            ServiceSocket.Bind(new IPEndPoint(IPAddress.Parse(PCIP), App.Config.PayloadPort ?? 0));
+                        else
+                            ServiceSocket.Bind(new IPEndPoint(IPAddress.Any, App.Config.PayloadPort ?? 0));
+
+                        ServiceSocket.Listen();
+                    }
+
+
+                    ServerRunning = true;
+
+                    _ = ServerLoop();
                 }
 
-
-                ServerRunning = true;
-
-                _ = ServerLoop();
+                if (PayloadSocket == null || !PayloadSocket.Connected)
+                {
+                    if (!await TryConnectSocket(PS4IP))
+                        return false;
+                }
             }
-
-            if (PayloadSocket == null || !PayloadSocket.Connected)
+            catch (Exception ex)
             {
-                if (!await TryConnectSocket(PS4IP))
-                    return false;
+#if DEBUG
+                await MessageBox.ShowAsync("EnsureServer Failed\n" + ex.ToString());
+#endif
+                throw;
             }
-
             return true;
         }
 
@@ -232,8 +261,18 @@ namespace DirectPackageInstaller.Host
 
                 try
                 {
-                    var ClientSocket = await ServiceSocket.AcceptAsync(CToken.Token);
-                    Queue.Enqueue(ClientSocket);
+                    if (App.IsAndroid)
+                    {
+                        var ClientSocket = await AcceptConnectionInBackground(CToken.Token);
+                        if (ClientSocket == null) throw new NullReferenceException();
+                        Queue.Enqueue(ClientSocket);
+                    }
+                    else
+                    {
+                        var ClientSocket = await ServiceSocket.AcceptAsync(CToken.Token);
+                        if (ClientSocket == null) throw new NullReferenceException();
+                        Queue.Enqueue(ClientSocket);
+                    }
                 }
                 catch
                 {
@@ -249,6 +288,36 @@ namespace DirectPackageInstaller.Host
 
             ServiceSocket?.Close();
             ServiceSocket = null;
+        }
+
+        private async Task<Socket?> AcceptConnectionInBackground(CancellationToken Token)
+        {
+            Socket? ClientSocket = null;
+
+            var thread = new Thread(() =>
+            {
+                ClientSocket = ServiceSocket.Accept();
+            });
+
+            thread.IsBackground = true;
+            thread.Start();
+
+            while (thread.IsAlive && !Token.IsCancellationRequested)
+            {
+                await Task.Delay(100);
+            }
+
+            try
+            {
+                if (thread.IsAlive)
+                    thread.Interrupt();
+            }
+            catch { }
+
+            if (ClientSocket == null)
+                throw new NullReferenceException(nameof(ClientSocket));
+            
+            return ClientSocket;
         }
 
         /// <summary>

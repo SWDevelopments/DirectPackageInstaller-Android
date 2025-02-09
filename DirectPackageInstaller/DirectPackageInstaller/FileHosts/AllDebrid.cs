@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DirectPackageInstaller.Others;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -24,7 +25,7 @@ namespace DirectPackageInstaller.FileHosts
             const string URLMask = "https://api.alldebrid.com/v4/link/unlock?agent=DirectPackageInstaller&apikey={0}&link={1}";
 
             var Response = DownloadString(string.Format(URLMask, App.Config.AllDebridApiKey, HttpUtility.UrlEncode(URL)));
-            var Data = JsonSerializer.Deserialize<AllDebridApi>(Response);
+            var Data = JsonSerializer.Deserialize<AllDebridApi>(Response, JSONContext.Default.Options);
 
             if (Info?.status != "success")
                 throw new Exception();
@@ -45,7 +46,7 @@ namespace DirectPackageInstaller.FileHosts
             if (Info == null)
             {
                 var Status = DownloadString("https://api.alldebrid.com/v4/user/hosts?agent=DirectPackageInstaller&apikey=" + App.Config.AllDebridApiKey);
-                Info = JsonSerializer.Deserialize<AllDebridApi>(Status);
+                Info = JsonSerializer.Deserialize<AllDebridApi>(Status, JSONContext.Default.Options);
             }
 
             if (Info?.status != "success")
@@ -64,35 +65,6 @@ namespace DirectPackageInstaller.FileHosts
             }
 
             return false;
-        }
-
-        struct AllDebridApi
-        {
-            public string status { get; set; }
-            public AllDebridApiData data { get; set; }
-        }
-
-        struct AllDebridApiData
-        {
-            public Dictionary<string, AllDebridHostsEntry> hosts { get; set; }
-
-            public string link { get; set; }
-            public string host { get; set; }
-            public string hostDomain { get; set; }
-            public string filename { get; set; }
-            public bool paws { get; set; }
-            public long filesize { get; set; }
-            public string id { get; set; }
-        }
-
-        struct AllDebridHostsEntry
-        {
-            public string name { get; set; }
-            public string type { get; set; }
-            public string[] domains { get; set; }
-            public string[] regexps { get; set; }
-            public object regexp { get; set; }
-            public bool status { get; set; }
         }
     }
 

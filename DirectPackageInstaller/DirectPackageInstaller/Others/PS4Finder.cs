@@ -71,6 +71,11 @@ namespace DirectPackageInstaller
                     Discovery.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.DontRoute, 1);
                 }
 
+                var broadcastAddress = IPAddress.Broadcast;
+
+                if (App.IsAndroid)
+                    broadcastAddress = IPAddress.Parse(App.GetBroadcastAddress(LocalIP));
+
                 byte[] Buffer = new byte[Discovery.ReceiveBufferSize];
                 OnReceived.SetBuffer(Buffer);
                 OnReceived.RemoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
@@ -82,7 +87,7 @@ namespace DirectPackageInstaller
                 {
                     var SendTo = new SocketAsyncEventArgs()
                     {
-                        RemoteEndPoint = new IPEndPoint(IPAddress.Broadcast, 987)
+                        RemoteEndPoint = new IPEndPoint(broadcastAddress, 987)
                     };
 
                     SendTo.SetBuffer(SearchData, 0, SearchData.Length);

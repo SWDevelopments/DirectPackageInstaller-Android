@@ -146,6 +146,9 @@ namespace DirectPackageInstaller
                 IniWriter.SetValue("EthernetAdapter", Config.EthernetAdapter);
                 IniWriter.SetValue("EnableDHCP", Config.EnableDHCP.ToString());
 
+                if (Config.PayloadPort != null)
+                    IniWriter.SetValue("PayloadPort", Config.PayloadPort.ToString());
+
                 IniWriter.Save();
             } catch {}
         }
@@ -497,5 +500,9 @@ namespace DirectPackageInstaller
         internal static string SettingsPath => Path.Combine(WorkingDirectory, "Settings.ini");
 
         public static Action<string>? InstallApk;
+
+        public static Func<string[]>? GetIPAddresses;
+
+        public static Func<string, string>? GetBroadcastAddress;
     }
 }

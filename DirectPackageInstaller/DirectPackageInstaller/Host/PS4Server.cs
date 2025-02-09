@@ -13,6 +13,8 @@ using DirectPackageInstaller.Tasks;
 using HttpServerLite;
 using static DirectPackageInstaller.SplitHelper;
 using SharpCompress;
+using DirectPackageInstaller.Others;
+using DirectPackageInstaller.Views;
 
 namespace DirectPackageInstaller.Host
 {
@@ -441,49 +443,51 @@ namespace DirectPackageInstaller.Host
         
         public string RegisterJSON(string URL, string PCIP, PKGHelper.PKGInfo Info, bool AutoSplit)
         {
-            var ID = JSONs.Count().ToString();
-
-            if (AutoSplit)
+            try
             {
-                const long MaxPieceSize = 4294967296;
+                var ID = JSONs.Count().ToString();
 
-
-                PKGManifest Manifest = new PKGManifest();
-                Manifest.originalFileSize = Info.PackageSize;
-                Manifest.packageDigest = Info.Digest;
-
-                long Offset = 0;
-                long ReamingSize = Info.PackageSize;
-
-                List<PkgPiece> Pieces = new List<PkgPiece>();
-                while (ReamingSize > 0)
+                if (AutoSplit)
                 {
-                    var PieceSize = ReamingSize > MaxPieceSize ? MaxPieceSize : ReamingSize;
-                    Pieces.Add(new PkgPiece()
+                    const long MaxPieceSize = 4294967296;
+
+
+                    PKGManifest Manifest = new PKGManifest();
+                    Manifest.originalFileSize = Info.PackageSize;
+                    Manifest.packageDigest = Info.Digest;
+
+                    long Offset = 0;
+                    long ReamingSize = Info.PackageSize;
+
+                    List<PkgPiece> Pieces = new List<PkgPiece>();
+                    while (ReamingSize > 0)
                     {
-                        fileOffset = Offset,
-                        fileSize = PieceSize,
-                        url = $"http://{PCIP}:{Installer.ServerPort}/split/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}&offset={Offset}&size={PieceSize}",
-                        hashValue = "0000000000000000000000000000000000000000"
-                    });
+                        var PieceSize = ReamingSize > MaxPieceSize ? MaxPieceSize : ReamingSize;
+                        Pieces.Add(new PkgPiece()
+                        {
+                            fileOffset = Offset,
+                            fileSize = PieceSize,
+                            url = $"http://{PCIP}:{Installer.ServerPort}/split/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}&offset={Offset}&size={PieceSize}",
+                            hashValue = "0000000000000000000000000000000000000000"
+                        });
 
-                    Offset += PieceSize;
-                    ReamingSize -= PieceSize;
+                        Offset += PieceSize;
+                        ReamingSize -= PieceSize;
+                    }
+
+                    Manifest.pieces = Pieces.ToArray();
+                    Manifest.numberOfSplitFiles = Manifest.pieces.Length;
+
+                    var JSON = JsonSerializer.Serialize(Manifest, JSONContext.Default.Options);
+                    JSONs.Add(ID, JSON);
                 }
-
-                Manifest.pieces = Pieces.ToArray();
-                Manifest.numberOfSplitFiles = Manifest.pieces.Length;
-
-                var JSON = JsonSerializer.Serialize(Manifest);
-                JSONs.Add(ID, JSON);
-            } 
-            else
-            {
-                PKGManifest Manifest = new PKGManifest();
-                Manifest.originalFileSize = Info.PackageSize;
-                Manifest.packageDigest = Info.Digest;
-                Manifest.numberOfSplitFiles = 1;
-                Manifest.pieces = new PkgPiece[] { 
+                else
+                {
+                    PKGManifest Manifest = new PKGManifest();
+                    Manifest.originalFileSize = Info.PackageSize;
+                    Manifest.packageDigest = Info.Digest;
+                    Manifest.numberOfSplitFiles = 1;
+                    Manifest.pieces = new PkgPiece[] {
                     new PkgPiece()
                     {
                         fileSize = Info.PackageSize,
@@ -493,11 +497,17 @@ namespace DirectPackageInstaller.Host
                     }
                 };
 
-                var JSON = JsonSerializer.Serialize(Manifest);
-                JSONs.Add(ID, JSON);
-            }
+                    var JSON = JsonSerializer.Serialize(Manifest, JSONContext.Default.Options);
+                    JSONs.Add(ID, JSON);
+                }
 
-            return $"http://{PCIP}:{Server.Settings.Port}/json/{ID}.json";
+                return $"http://{PCIP}:{Server.Settings.Port}/json/{ID}.json";
+            }
+            catch (Exception ex)
+            {
+                MessageBox.ShowSync("Failed to Register JSON\n" + ex.ToString());
+                throw;
+            }
         }
 
     }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -14,13 +15,20 @@ namespace DirectPackageInstaller
     {
         public static string[] EnumLocalIPs()
         {
+            if (App.IsAndroid && App.GetIPAddresses != null)
+            {
+                var Ips = App.GetIPAddresses() ?? null;
+                if (Ips != null && Ips.Length > 0)
+                    return Ips;
+            }
+
             return SearchInterfaces();
         }
         public static string? FindLocalIP(string RemoteIP)
         {
             try
             {
-                var IPs = SearchInterfaces();
+                var IPs = EnumLocalIPs();
                 string RemotePartial = RemoteIP.Substring(0, RemoteIP.LastIndexOf('.'));
                 return IPs.Single(x => x.StartsWith(RemotePartial));
             }

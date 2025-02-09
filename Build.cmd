@@ -163,23 +163,23 @@ dotnet clean
 rmdir /s /q .\Release
 mkdir .\Release
 
-dotnet workload restore
+REM dotnet workload restore
 
-call :Build win-x64
-call :Build win-x86
-call :Build win-arm
-call :Build win-arm64
+REM call :Build win-x64
+REM call :Build win-x86
+REM call :Build win-arm
+REM call :Build win-arm64
 
-call :Build linux-x64
-call :Build linux-arm
-call :Build linux-arm64
+REM call :Build linux-x64
+REM call :Build linux-arm
+REM call :Build linux-arm64
 
-call :OSXBuild osx-x64
-call :OSXBuild osx-arm64
+REM call :OSXBuild osx-x64
+REM call :OSXBuild osx-arm64
 
-call :AndroidBuild android-x64
-call :AndroidBuild android-x86
-call :AndroidBuild android-arm
+REM call :AndroidBuild android-x64
+REM call :AndroidBuild android-x86
+REM call :AndroidBuild android-arm
 call :AndroidBuild android-arm64
 
 cd Release

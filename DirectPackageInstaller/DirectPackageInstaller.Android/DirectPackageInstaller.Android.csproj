@@ -1,52 +1,40 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <TargetFramework>net8.0-android</TargetFramework>
-        <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
-        <Nullable>enable</Nullable>
-        <ApplicationId>com.marcussacana.DirectPackageInstaller</ApplicationId>
-        <ApplicationVersion>1</ApplicationVersion>
-        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-        <AndroidPackageFormat>apk</AndroidPackageFormat>
-        <MSBuildEnableWorkloadResolver>true</MSBuildEnableWorkloadResolver>
-    </PropertyGroup>
-    <ItemGroup>
-        <AndroidResource Include="Icon.png">
-            <Link>Resources\drawable\Icon.png</Link>
-        </AndroidResource>
-    </ItemGroup>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net8.0-android</TargetFramework>
+		<SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
+		<Nullable>enable</Nullable>
+		<ApplicationId>com.marcussacana.DirectPackageInstaller</ApplicationId>
+		<ApplicationVersion>1</ApplicationVersion>
+		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<AndroidPackageFormat>apk</AndroidPackageFormat>
+		<AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+		<NullabilityInfoContextSupport>true</NullabilityInfoContextSupport>
+	</PropertyGroup>
 
-    <PropertyGroup Condition="'$(Configuration)'=='Release' and '$(TF_BUILD)' == ''">
-        <Optimize>True</Optimize>
-        <RunAOTCompilation>True</RunAOTCompilation>
-        <EnableLLVM>True</EnableLLVM>
-        <AndroidEnableProfiledAot>False</AndroidEnableProfiledAot>
-        <EmbedAssembliesIntoApk>True</EmbedAssembliesIntoApk>
-    </PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)'=='Release' and '$(TF_BUILD)' == ''">
+		<Optimize>True</Optimize>
+		<RunAOTCompilation>True</RunAOTCompilation>
+		<PublishTrimmed>true</PublishTrimmed>
+		<EnableLLVM>True</EnableLLVM>
+		<AndroidEnableProfiledAot>False</AndroidEnableProfiledAot>
+		<EmbedAssembliesIntoApk>True</EmbedAssembliesIntoApk>
+	</PropertyGroup>
 
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-        <Optimize>False</Optimize>
-        <DebugSymbols>True</DebugSymbols>
-        <DebugType>portable</DebugType>
-        <AndroidLinkMode>none</AndroidLinkMode>
-        <RunAOTCompilation>False</RunAOTCompilation>
-        <EmbedAssembliesIntoApk>False</EmbedAssembliesIntoApk>
-        <AndroidEnableProfiledAot>True</AndroidEnableProfiledAot>
-    </PropertyGroup>
+	<ItemGroup>
+		<AndroidResource Include="Icon.png">
+			<Link>Resources\drawable\Icon.png</Link>
+		</AndroidResource>
+	</ItemGroup>
 
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-      <EmbedAssembliesIntoApk>True</EmbedAssembliesIntoApk>
-    </PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Avalonia.Android" Version="11.2.3" />
+		<PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.3" />
+		<PackageReference Include="Avalonia.Native" Version="11.2.3" />
+		<PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.14" />
+	</ItemGroup>
 
-    <ItemGroup>
-	    <PackageReference Include="Avalonia.Android" Version="11.1.3" />
-	    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.1.3" />
-	    <PackageReference Include="CavemanTcp" Version="2.0.2" />
-	    <PackageReference Include="System.Text.Json" Version="8.0.4" />
-	    <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.0.1.11" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <ProjectReference Include="..\DirectPackageInstaller\DirectPackageInstaller.csproj" />
-    </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\DirectPackageInstaller\DirectPackageInstaller.csproj" />
+	</ItemGroup>
 </Project>

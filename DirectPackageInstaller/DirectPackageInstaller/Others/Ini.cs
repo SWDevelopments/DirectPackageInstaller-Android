@@ -65,6 +65,14 @@ namespace DirectPackageInstaller
             return Value is "true" or "1" or "yes";
         }
 
+        public int? GetIntValue(string Name, string? Group = null)
+        {
+            var Value = GetValue(Name, Group)?.ToLowerInvariant();
+            if (int.TryParse(Value, out int rst))
+                return rst;
+            return null;
+        }
+
         public Dictionary<string, string> GetValues(string? Group)
         {
             var Result = new Dictionary<string, string>();

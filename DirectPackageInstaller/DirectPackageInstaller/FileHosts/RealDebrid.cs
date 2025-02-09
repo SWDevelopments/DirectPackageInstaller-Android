@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DirectPackageInstaller.Others;
+using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -27,7 +28,7 @@ namespace DirectPackageInstaller.FileHosts
             if (string.IsNullOrWhiteSpace(Response))
                 throw new Exception();
             
-            var Data = JsonSerializer.Deserialize<RealdebirdApi>(Response);
+            var Data = JsonSerializer.Deserialize<RealdebirdApi>(Response, JSONContext.Default.Options);
 
 
             GenCache[URL] = Data.download;
@@ -38,20 +39,6 @@ namespace DirectPackageInstaller.FileHosts
             };
         }
 
-        struct RealdebirdApi
-        {
-            public string id { get; set; }
-            public string filename { get; set; }
-            public string mimeType { get; set; }
-            public long filesize { get; set; }
-            public string link { get; set; }
-            public string host { get; set; }
-            public long chunks { get; set; }
-            public int crc { get; set; }
-            public string download { get; set; }
-            public int streamable { get; set; }
-        }
-
         public override bool IsValidUrl(string URL)
         {
             if (!App.Config.UseRealDebrid || App.Config.RealDebridApiKey.ToLowerInvariant() == "null" || string.IsNullOrEmpty(App.Config.RealDebridApiKey))
@@ -60,7 +47,7 @@ namespace DirectPackageInstaller.FileHosts
             if (HostsRegex == null)
             {
                 var Status = DownloadString("https://api.real-debrid.com/rest/1.0/hosts/regex?auth_token=" + App.Config.RealDebridApiKey);
-                HostsRegex = JsonSerializer.Deserialize<string[]>(Status);
+                HostsRegex = JsonSerializer.Deserialize<string[]>(Status, JSONContext.Default.Options);
             }
 
             foreach (var Host in HostsRegex) {

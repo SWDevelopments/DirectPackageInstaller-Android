@@ -6,6 +6,10 @@ using System.Text;
 using System.Threading.Tasks;
 using DirectPackageInstaller.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
+using System.Management;
+using DirectPackageInstaller.Others;
 
 namespace DirectPackageInstaller
 {
@@ -33,26 +37,10 @@ namespace DirectPackageInstaller
 
         private static Stream OpenJSON(string JSON)
         {
-            PKGManifest Info = JsonSerializer.Deserialize<PKGManifest>(JSON);
+            PKGManifest Info = JsonSerializer.Deserialize<PKGManifest>(JSON, JSONContext.Default.Options);
             Stream[] Urls = (from x in Info.pieces orderby x.fileOffset ascending select new FileHostStream(x.url)).ToArray();
             long[] Sizes = (from x in Info.pieces orderby x.fileOffset ascending select x.fileSize).ToArray();
             return new MergedStream(Urls, Sizes);
-        }
-
-        public struct PKGManifest
-        {
-            public long originalFileSize { get; set; }
-            public string packageDigest { get; set; }
-            public int numberOfSplitFiles { get; set; }
-            public PkgPiece[] pieces { get; set; }
-        }
-
-        public struct PkgPiece
-        {
-            public string url { get; set; }
-            public long fileOffset { get; set; }
-            public long fileSize { get; set; }
-            public string hashValue { get; set; }
         }
     }
 }
