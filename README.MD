@@ -23,7 +23,6 @@ Or alternatively the RemotePackageInstaller Homebrew.
 - RealDebrid ([API Key Required](https://real-debrid.com/apitoken))
 - Google Drive (With or Without Authentication)
 - Mediafire (Without Authentication)
-- DataNodes (Freemium Links Only)
 - PixelDrain
 - 1Fichier (Must wait 60 minutes after downloaded)
 

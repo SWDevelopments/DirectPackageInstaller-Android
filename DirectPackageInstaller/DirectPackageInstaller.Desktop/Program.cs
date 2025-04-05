@@ -37,7 +37,7 @@ namespace DirectPackageInstaller.Desktop
 
             if (!UILaunch)
             {
-                UILaunch = args!.Select(x => x
+                UILaunch = args!.Where(x => x
                     .Trim(' ', '-', '\\', '/')
                     .Equals("ui", StringComparison.InvariantCultureIgnoreCase)
                 ).Any();
@@ -69,12 +69,18 @@ namespace DirectPackageInstaller.Desktop
             string PS4 = null;
             string URL = null;
             int Port = 0;
+            int DPIPort = 0;
 
             for (int i = 0; i < args.Length; i++)
             {
                 string Arg = args[i].Trim(' ', '-', '/', '\\').ToLowerInvariant();
                 switch (Arg)
                 {
+                    case "dpiport":
+                        if (i + 1 >= args.Length)
+                            goto case "help";
+                        int.TryParse(args[++i], out DPIPort);
+                        break;
                     case "lan":
                     case "server":
                     case "serverip":
@@ -103,7 +109,7 @@ namespace DirectPackageInstaller.Desktop
                     case "h":
                     case "?":
                         Console.WriteLine("The DirectPackageInstaller can do only basic things currently.");
-                        Console.WriteLine("DirectPackageInstaller.Desktop -Server PKG_SENDER_PC_IP -PS4 PS4_IP -Port BIN_LOADER_PORT [-Proxy] http://eaxample.com/game.pkg");
+                        Console.WriteLine("DirectPackageInstaller.Desktop -Server PKG_SENDER_PC_IP -PS4 PS4_IP -Port BIN_LOADER_PORT -DPIPort PKG_INFO_PORT [-Proxy] http://eaxample.com/game.pkg");
                         Console.WriteLine();
                         Console.WriteLine("Where:");
                         Console.WriteLine();
@@ -115,6 +121,9 @@ namespace DirectPackageInstaller.Desktop
                         Console.WriteLine();
                         Console.WriteLine("BIN_LOADER_PORT is the port of the running bin loader in the PS4");
                         Console.WriteLine("By default the ports 9090, 9021 and 9020 are tried, then you usually don't need specify the port");
+                        Console.WriteLine();
+                        Console.WriteLine("PKG_INFO_PORT is the DPI will listen for the PS4 be able to collect metadata about the PKG");
+                        Console.WriteLine("By default the port is automatically set by OS, and can be saved in Settings.ini file, or overwrited by this parameter.");
                         Console.WriteLine();
                         Console.WriteLine("The -Proxy parameter is optional, this will make the PS4 download url be proxied by the DirectPacakgeInstaller");
                         Console.WriteLine();
@@ -271,14 +280,16 @@ namespace DirectPackageInstaller.Desktop
                 PKG.Close();
             }
             
-            Console.WriteLine($"Pusing: {Info?.FriendlyName}");
+            Console.WriteLine($"Pushing: {Info?.FriendlyName}");
             Console.WriteLine($"Title ID: {Info?.TitleID}");
             Console.WriteLine($"Content ID: {Info?.ContentID}");
             Console.WriteLine($"Type: {Info?.FirendlyContentType}");
 
             Installer.Server = PSServer;
             Installer.CurrentPKG = Info!.Value;
-            
+
+            App.Config.PayloadPort = DPIPort;
+
             bool Status = Installer.Payload.SendPKGPayload(PS4, Server, URL, true, false).ConfigureAwait(false).GetAwaiter().GetResult();
 
             if (!Status)

@@ -381,7 +381,7 @@ namespace DirectPackageInstaller
             }
         }
 
-        internal static Settings Config = new Settings();
+        public static Settings Config = new Settings();
 
         internal static WebClientWithCookies WebClient = new WebClientWithCookies();
         internal static bool IsRunningOnMono => Type.GetType("Mono.Runtime") != null;

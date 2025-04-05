@@ -178,7 +178,7 @@ namespace DirectPackageInstaller.FileHosts
         public static FileHostBase[] Hosts => new FileHostBase[] {
                 new Mediafire(), new GoogleDrive(), new PixelDrain(), 
                 new AllDebrid(), new RealDebrid(), new OneFichier(),
-                new DataNodes()
+                //new DataNodes()
         };
     }
 
