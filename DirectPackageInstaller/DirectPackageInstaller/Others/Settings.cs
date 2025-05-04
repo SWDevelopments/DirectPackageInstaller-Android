@@ -29,5 +29,7 @@ namespace DirectPackageInstaller
         public bool EnableCNL;
 
         public bool ShowError;
+
+        public bool AutoSplitPKG;
     }
 }

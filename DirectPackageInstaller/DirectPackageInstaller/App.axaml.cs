@@ -145,6 +145,7 @@ namespace DirectPackageInstaller
                 IniWriter.SetValue("SkipUpdateCheck", Config.SkipUpdateCheck.ToString());
                 IniWriter.SetValue("EthernetAdapter", Config.EthernetAdapter);
                 IniWriter.SetValue("EnableDHCP", Config.EnableDHCP.ToString());
+                IniWriter.SetValue("AutoSplitPKG", Config.AutoSplitPKG.ToString());
 
                 if (Config.PayloadPort != null)
                     IniWriter.SetValue("PayloadPort", Config.PayloadPort.ToString());

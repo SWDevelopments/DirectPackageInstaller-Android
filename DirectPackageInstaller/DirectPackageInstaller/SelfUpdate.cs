@@ -47,7 +47,7 @@ namespace DirectPackageInstaller
 
         const string UpdateList = "Update.ini";
 
-        public const string CurrentVersion = "8.2.0";
+        public const string CurrentVersion = "8.2.1";
         
         static Version CurrentVer = new Version(CurrentVersion);
 
@@ -59,16 +59,23 @@ namespace DirectPackageInstaller
         {
             string OS = RuntimeInformation.OSDescription;
 
-            if (OS.ToLowerInvariant().Contains("windows"))
-                OS = "Windows";
-            else if (App.IsAndroid)
-                OS = "Android";
-            else if (OS.ToLowerInvariant().Contains("linux"))
-                OS = "Linux";
-            else if (OS.ToLowerInvariant().Contains("darwin"))
-                OS = "OSX";
-            else
-                throw new PlatformNotSupportedException();
+            switch (App.CurrentPlatform)
+            {
+                case App.OS.OSX:
+                    OS = "OSX";
+                    break;
+                case App.OS.Linux:
+                    OS = "Linux";
+                    break;
+                case App.OS.Windows:
+                    OS = "Windows";
+                    break;
+                case App.OS.Android:
+                    OS = "Android";
+                    break;
+                default:
+                    throw new PlatformNotSupportedException();
+            }
 
             string Arch;
             switch (RuntimeInformation.ProcessArchitecture)

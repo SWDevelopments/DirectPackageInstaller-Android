@@ -142,6 +142,7 @@ namespace DirectPackageInstaller.Views
                 App.Config.EnableCNL = IniReader.GetBooleanValue("EnableCNL");
                 App.Config.ShowError = IniReader.GetBooleanValue("ShowError");
                 App.Config.SkipUpdateCheck = IniReader.GetBooleanValue("SkipUpdateCheck");
+                App.Config.AutoSplitPKG = IniReader.GetBooleanValue("AutoSplitPKG");
 
                 App.Config.PayloadPort = IniReader.GetIntValue("PayloadPort");
                 

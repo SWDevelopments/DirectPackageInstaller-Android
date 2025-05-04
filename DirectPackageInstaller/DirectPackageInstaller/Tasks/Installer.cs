@@ -197,6 +197,9 @@ namespace DirectPackageInstaller.Tasks
                     return false;
             }
 
+            if (!Config.AutoSplitPKG)
+                CanSplit = false;
+
             bool OK;
             if (await IPHelper.IsRPIOnline(Config.PS4IP))
                 OK = await PushRPI(URL, Config, Silent);
