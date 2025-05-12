@@ -40,6 +40,7 @@ This tool supports three different methods for sending PKGs:
 1.  Download and install the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime)    
 2.  Download a build compatible with your platform:
     
+----------
 
 <details> <summary>Windows</summary>
 
@@ -74,6 +75,8 @@ This tool supports three different methods for sending PKGs:
 -   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.zip)   
 
 </details>
+
+----------
 
 ### How to Use
 
