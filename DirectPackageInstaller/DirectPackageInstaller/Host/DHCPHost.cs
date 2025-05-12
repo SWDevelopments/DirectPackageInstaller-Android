@@ -86,7 +86,7 @@ namespace DirectPackageInstaller.Host
             Dispose();
         }
 
-        public event Action<IPAddress, IPAddress?>? OnNewClient;
+        public event Action<IPAddress, IPAddress?, int>? OnNewClient;
 
         private int totalClients = 0;
         private void server_OnStatusChange(object? sender, DHCPStopEventArgs? e)
@@ -96,12 +96,29 @@ namespace DirectPackageInstaller.Host
                 if (_server.Clients.Count > totalClients)
                 {
                     var newClient = _server.Clients.OrderByDescending(x => x.LeaseStartTime).First();
-                    OnNewClient?.Invoke(newClient.IPAddress, _server.EndPoint.Address);
+
+                    var System = 4;
+                    if (isPS5Client(newClient))
+                        System = 5;
+
+                    OnNewClient?.Invoke(newClient.IPAddress, _server.EndPoint.Address, System);
                 }
 
                 totalClients = _server.Clients.Count;
             }
         }
+
+        private static bool isPS5Client(DHCPClient client)
+        {
+            var hostname = client.HostName;
+            if (hostname == null)
+                return false;
+            if (hostname.Contains("PS5"))
+                return true;
+
+            return hostname.Contains("5") && !hostname.Contains("PS4");
+        }
+
         public void Dispose()
         {
             if (_server != null)

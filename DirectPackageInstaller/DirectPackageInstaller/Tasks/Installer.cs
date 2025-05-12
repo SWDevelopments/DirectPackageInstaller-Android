@@ -15,6 +15,7 @@ using DirectPackageInstaller.Others;
 using SharpCompress.Archives;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Net.Http.Headers;
 
 namespace DirectPackageInstaller.Tasks
 {
@@ -34,9 +35,9 @@ namespace DirectPackageInstaller.Tasks
 
         public static async Task<bool> PushPackage(Settings Config, Source InputType, Stream? PKGStream, string URL, IArchive? Decompressor, DecompressorHelperStream[]? DecompressorStreams, Func<string, Task> SetStatus, Func<string> GetStatus, bool Silent)
         {
-            if (string.IsNullOrEmpty(Config.PS4IP) || Config.PS4IP == "0.0.0.0")
+            if (string.IsNullOrEmpty(Config.PSIP) || Config.PSIP == "0.0.0.0")
             {
-                await MessageBox.ShowAsync("PS4 IP not defined, please, type the PS4 IP in the Options Menu", "PS4 IP Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                await MessageBox.ShowAsync("PS IP not defined, please, type the PS IP in the Options Menu", "PS IP Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
             
@@ -94,7 +95,7 @@ namespace DirectPackageInstaller.Tasks
                 InputType &= ~Source.Proxy;
             
             
-            if (!await EnsureFreeSpace(PKGStream, DecompressorStreams, InputType))
+            if (!await MemoryInfo.EnsureFreeSpace(PKGStream, DecompressorStreams, InputType))
                 return false;
 
             bool CanSplit = true;
@@ -201,20 +202,96 @@ namespace DirectPackageInstaller.Tasks
                 CanSplit = false;
 
             bool OK;
-            if (await IPHelper.IsRPIOnline(Config.PS4IP))
+            if (await IPHelper.IsRPIOnline(Config.PSIP))
                 OK = await PushRPI(URL, Config, Silent);
+            else if (await IPHelper.IsEtaHenOnline(Config.PSIP))
+                OK = await PushEtaHen(URL, Config, Silent);
             else
-                OK = await Payload.SendPKGPayload(Config.PS4IP, Config.PCIP, URL, Silent, CanSplit);
+                OK = await Payload.SendPKGPayload(Config.PSIP, Config.PCIP, URL, Silent, CanSplit);
             
             return OK;
         }
 
+        #region etaHEN
+        public static async Task<bool> PushEtaHen(string URL, Settings Config, bool Silent)
+        {
+            try
+            {
+                string Boundary = GetBoundary();
+
+                using var client = new HttpClient();
+                var requestUri = $"http://{Config.PSIP}:12800/upload";
+
+                var content = new MultipartFormDataContent(Boundary);
+                content.Add(new StringContent("", null, "application/octet-stream"), "\"file\"", "\"\"");
+                using (var buffer = new MemoryStream(Encoding.UTF8.GetBytes(URL)))
+                {
+                    content.Add(new StreamContent(buffer), "\"url\"");
+
+                    var Response = await client.PostAsync(requestUri, content);
+
+                    using var Buffer = new MemoryStream();
+                    await Response.Content.CopyToAsync(Buffer);
+
+                    var Result = Encoding.UTF8.GetString(Buffer.ToArray());
+
+                    if (Result.Contains("SUCCESS:"))
+                    {
+                        if (!Silent)
+                            await MessageBox.ShowAsync("Package Sent!", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                        return true;
+                    }
+                    else
+                    {
+                        if (Result.Contains("0x80990085"))
+                            Result += "\nVerify if your playstation has free space.";
+
+                        await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                string Result = null;
+                if (ex is WebException)
+                {
+                    try
+                    {
+                        using (var Resp = ((WebException)ex).Response.GetResponseStream())
+                        using (MemoryStream Stream = new MemoryStream())
+                        {
+                            Resp.CopyTo(Stream);
+                            Result = Encoding.UTF8.GetString(Stream.ToArray());
+                        }
+                    }
+                    catch { }
+                }
+
+                await File.WriteAllTextAsync(Path.Combine(App.WorkingDirectory, "DPI-ERROR.log"), ex.ToString());
+                await MessageBox.ShowAsync("Failed:\n" + (Result == null ? ex.ToString() : Result), "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private static string GetBoundary()
+        {
+            var rndData = new byte[16];
+            Random rnd = new Random();
+            rnd.NextBytes(rndData);
+            var rndStr = string.Join("", rndData.Select(x => x.ToString("x2")));
+            return "------DirectPackageInstaller_" + rndStr;
+        }
+        #endregion
+
+        #region RemotePackageInstaller
         public static async Task<bool> PushRPI(string URL, Settings Config, bool Silent)
         {
             try
             {
                 using var client = new HttpClient();
-                var requestUri = $"http://{Config.PS4IP}:12800/api/install";
+                var requestUri = $"http://{Config.PSIP}:12800/api/install";
 
 
                 var EscapedURL = HttpUtility.UrlEncode(URL.Replace("https://", "http://"));
@@ -239,7 +316,7 @@ namespace DirectPackageInstaller.Tasks
                 else
                 {
                     if (Result.Contains("0x80990085"))
-                        Result += "\nVerify if your PS4 have free space.";
+                        Result += "\nVerify if your playstation has free space.";
 
                     await MessageBox.ShowAsync("Failed:\n" + Result, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return false;
@@ -267,7 +344,9 @@ namespace DirectPackageInstaller.Tasks
                 return false;
             }
         }
-        
+        #endregion
+
+        #region DirectPackageInstaller
         public static async Task StartServer(string LocalIP)
         {
             if (string.IsNullOrEmpty(LocalIP))
@@ -295,61 +374,7 @@ namespace DirectPackageInstaller.Tasks
             }
         }
 
-        private static async Task<bool> EnsureFreeSpace(Stream? PKGStream, DecompressorHelperStream[]? DecompressorStreams, Source InputType)
-        {
-            bool AllocationRequired = InputType.HasFlag(Source.DiskCache) || InputType.HasFlag(Source.RAR)       ||
-                                      InputType.HasFlag(Source.SevenZip)  || InputType.HasFlag(Source.Segmented);
-
-            if (!AllocationRequired || PKGStream == null)
-                return true;
-            
-            long MaxAllocationSize = PKGStream.Length;
-            if (DecompressorStreams != null)
-                MaxAllocationSize += DecompressorStreams.First().Length;
-
-            long FreeSpace = 0;
-            while (MaxAllocationSize > (FreeSpace = App.GetFreeStorageSpace()))
-            {
-                long Missing = MaxAllocationSize - FreeSpace;
-                    
-                var Message = $"{MaxAllocationSize.ToFileSize()} in your {(App.UseSDCard ? "SD card" : "internal storage")} is required, missing {Missing.ToFileSize()} currently.";
-                
-                if (App.IsAndroid)
-                {
-                    var CurrentStorage = App.UseSDCard;
-                    App.UseSDCard = !CurrentStorage;
-                    
-                    var AltFreeSpace = App.GetFreeStorageSpace();
-                    var AltMissingSpace = MaxAllocationSize - AltFreeSpace;
-                    var AltStorageName = App.UseSDCard ? "SD card" : "internal storage";
-                    
-                    App.UseSDCard = CurrentStorage;
-                    
-                    if (AltFreeSpace > MaxAllocationSize)
-                    {
-                        App.UseSDCard = !CurrentStorage;
-                        continue;
-                    }
-                    
-                    Message += $"\nOr clean more {AltMissingSpace.ToFileSize()} in your {AltStorageName}.";
-                }
-                
-                if (InputType.HasFlag(Source.Segmented))
-                    Message += "\nAlternatively, you can disable Segmented Download feature.";
-
-                if (!TempHelper.CacheIsEmpty() && Server is {Connections: 0})
-                {
-                    TempHelper.Clear();
-                    continue;
-                }
-                    
-                var Result = await MessageBox.ShowAsync(Message, "DirectPackageInstaller", MessageBoxButtons.RetryCancel, MessageBoxIcon.Warning);
-                if (Result != DialogResult.Retry)
-                    return false;
-            }
-
-            return true;
-        }
+        #endregion
 
     }
 }

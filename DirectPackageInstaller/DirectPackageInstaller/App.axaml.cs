@@ -130,7 +130,7 @@ namespace DirectPackageInstaller
             {
                 var IniWriter = new Ini(App.SettingsPath, "Settings");
 
-                IniWriter.SetValue("PS4IP", Config.PS4IP);
+                IniWriter.SetValue("PS4IP", Config.PSIP);
                 IniWriter.SetValue("PCIP", Config.PCIP);
                 IniWriter.SetValue("SearchPS4", Config.SearchPS4.ToString());
                 IniWriter.SetValue("ProxyDownload", Config.ProxyDownload.ToString());

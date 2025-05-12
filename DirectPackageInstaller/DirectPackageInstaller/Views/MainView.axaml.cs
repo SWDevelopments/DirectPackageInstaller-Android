@@ -130,7 +130,7 @@ namespace DirectPackageInstaller.Views
                 App.Config.EthernetAdapter = IniReader.GetValue("EthernetAdapter");
                 App.Config.EnableDHCP = IniReader.GetBooleanValue("EnableDHCP");
 
-                App.Config.PS4IP = IniReader.GetValue("PS4IP");
+                App.Config.PSIP = IniReader.GetValue("PS4IP");
                 App.Config.PCIP = IniReader.GetValue("PCIP");
                 App.Config.SearchPS4 = IniReader.GetBooleanValue("SearchPS4");
                 App.Config.ProxyDownload = IniReader.GetBooleanValue("ProxyDownload");
@@ -162,7 +162,7 @@ namespace DirectPackageInstaller.Views
                 App.Config = new Settings()
                 {
                     PCIP = "0.0.0.0",
-                    PS4IP = "",
+                    PSIP = "",
                     SearchPS4 = true,
                     ProxyDownload = true,
                     SegmentedDownload = !App.IsAndroid,
@@ -175,14 +175,14 @@ namespace DirectPackageInstaller.Views
                     RealDebridApiKey = null
                 };
 
-                var DHCPHint = "With DirectPackageInstaller your PS4 and PC can do a \"Plug And Play\" network connection just enable the DHCP Server option and select your network adapter if needed.";
+                var DHCPHint = "With DirectPackageInstaller your PS4/PS5 and PC can do a \"Plug And Play\" network connection just enable the DHCP Server option and select your network adapter if needed.";
                 var ProxyHint = "If your download speed is very slow, you can try enable the \"Proxy Downloads\" feature, since this feature has been created just to optimize the download speed.";
                 var CompressedHint = "When downloading directly from compressed files, you can't resume the download after the DirectPackageInstaller is closed, but before close the DirectPackageInstaller you still can pause and resume the download in your PS4.";
                 var AndroidHints = "Is recommended to keep your phone in charger to prevent any battery optimization problems.\nIf you're using MIUI, disable the battery optimizations manually in the app properties.";
                 var FirewallHint = $"The DirectPackageInstaller use the port {Installer.ServerPort} in the \"Proxy Downloads\" feature, maybe you will need to open the ports in your firewall.";
-                var ResumeHint = "Direct PKG urls, using the \"Proxy Download\" feature or not, can be resumed anytime by just selecting 'resume' in your PS4 download list.";
-                var IndirectDownloadHint = "When using the \"Proxy Downloads\" feature, the PS4 can't download the game alone and the DirectPackageInstaller must keep open.";
-                var DirectDownloadHint = "When using the direct download mode, you can turn off the computer or close the DirectPakcageInstaller and your PS4 will continue the download alone.";
+                var ResumeHint = "Direct PKG urls, using the \"Proxy Download\" feature or not, can be resumed anytime by just selecting 'resume' in your PS4/PS5 download list.";
+                var IndirectDownloadHint = "When using the \"Proxy Downloads\" feature, the PS4/PS5 can't download the game alone and the DirectPackageInstaller must keep open.";
+                var DirectDownloadHint = "When using the direct download mode, you can turn off the computer or close the DirectPakcageInstaller and your PS4/PS5 will continue the download alone.";
                 var WelcomeText = $"Welcome. User, The focus of this tool is download PKGs from direct links but we have others minor features as well.\n\nGood to know:\n{DirectDownloadHint}\n\n{IndirectDownloadHint}\n\n{ResumeHint}\n\n{(App.IsAndroid ? AndroidHints : FirewallHint)}\n\n{CompressedHint}\n\n{ProxyHint}\n\n{(App.IsWindows? DHCPHint  + "\n\n": "")}Created by marcussacana";
                 
                 await MessageBox.ShowAsync(WelcomeText, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -194,12 +194,12 @@ namespace DirectPackageInstaller.Views
              Model.UseAllDebrid = App.Config.UseAllDebrid;
              Model.SegmentedMode = App.Config.SegmentedDownload;
              Model.UseRealDebrid = App.Config.UseRealDebrid;
-             Model.PS4IP = App.Config.PS4IP;
+             Model.PS4IP = App.Config.PSIP;
              Model.PCIP = App.Config.PCIP;
              Model.AllDebridApiKey = App.Config.AllDebridApiKey;
              Model.RealDebridApiKey = App.Config.RealDebridApiKey;
              
-            if (App.Config.SearchPS4 || string.IsNullOrEmpty(App.Config.PS4IP))
+            if (App.Config.SearchPS4 || string.IsNullOrEmpty(App.Config.PSIP))
             {
                 _ = PS4Finder.StartFinder(OnClientFound());
             }
@@ -209,7 +209,7 @@ namespace DirectPackageInstaller.Views
                 await StartDHCP(App.Config.EthernetAdapter);
             }
 
-            if (!string.IsNullOrEmpty(App.Config.PS4IP))
+            if (!string.IsNullOrEmpty(App.Config.PSIP))
                 await Installer.StartServer(App.Config.PCIP);
 
              if (App.Config.EnableCNL)
@@ -259,15 +259,15 @@ namespace DirectPackageInstaller.Views
              }
         }
 
-        private Action<IPAddress, IPAddress?> OnClientFound()
+        private Action<IPAddress, IPAddress?, int> OnClientFound()
         {
-            return (PS4IP, PCIP) =>
+            return (PS4IP, PCIP, VERSION) =>
             {
                 Dispatcher.UIThread.InvokeAsync(async () =>
                 {
                     if (!string.IsNullOrEmpty(Model.PS4IP))
                     {
-                        if (Model.PS4IP == PS4IP.ToString() || await MessageBox.ShowAsync($"A new PS4 IP has been found ({PS4IP}), Update the PS4 IP?", "DirectPackageInstaller", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
+                        if (Model.PS4IP == PS4IP.ToString() || await MessageBox.ShowAsync($"A new PS{VERSION} IP has been found ({PS4IP}), Update the PS{VERSION} IP?", "DirectPackageInstaller", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
                             return;
                     }
                     Model.PS4IP = PS4IP.ToString();
@@ -357,7 +357,7 @@ namespace DirectPackageInstaller.Views
             {
                 DHCP = new DHCPHost();
                 DHCP.OnNewClient += OnClientFound();
-                DHCP.OnNewClient += async (a, b) => {
+                DHCP.OnNewClient += async (a, b, c) => {
                     await SetStatus($"Device Connected, IP: {a}");
                 };
             }
@@ -805,7 +805,7 @@ namespace DirectPackageInstaller.Views
                     App.Config.SegmentedDownload = Model.SegmentedMode;
                     break;
                 case "PS4IP":
-                    App.Config.PS4IP = Model.PS4IP;
+                    App.Config.PSIP = Model.PS4IP;
                     break;
                 case "PCIP":
                     App.Config.PCIP = Model.PCIP;
@@ -897,9 +897,9 @@ namespace DirectPackageInstaller.Views
 
         private async Task<bool> Install(string URL, bool Silent)
         {
-            if (string.IsNullOrWhiteSpace(App.Config.PS4IP) || string.IsNullOrWhiteSpace(App.Config.PCIP))
+            if (string.IsNullOrWhiteSpace(App.Config.PSIP) || string.IsNullOrWhiteSpace(App.Config.PCIP))
             {
-                await MessageBox.ShowAsync(Parent, "Failed to detect your PS4 IP.\nPlease, Type your PS4/PC IP in the options menu", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                await MessageBox.ShowAsync(Parent, "Failed to detect your playstation IP.\nPlease, Type your PS/PC IP in the options menu", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
 
@@ -910,10 +910,15 @@ namespace DirectPackageInstaller.Views
             tbURL.IsEnabled = false;
             try
             {
-                if (!await IPHelper.IsRPIOnline(App.Config.PS4IP) && (!await IPHelper.IsGoldHENOnline(App.Config.PS4IP) && !Installer.Payload.ClientRunning))
-                {
-                    await MessageBox.ShowAsync($"Remote Package Installer or GoldHEN Not Found at {App.Config.PS4IP}, Verify if is running.\nYou may need re-enable the payload server.", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    return false;
+                if (!await IPHelper.IsRPIOnline(App.Config.PSIP)) {
+                    if (!await IPHelper.IsGoldHENOnline(App.Config.PSIP) && !Installer.Payload.ClientRunning)
+                    {
+                        if (!await IPHelper.IsEtaHenOnline(App.Config.PSIP))
+                        {
+                            await MessageBox.ShowAsync($"RPI, GoldHEN nor etaHEN Found at {App.Config.PSIP}, Verify if is running.\nYou may need re-enable the payload server.", "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            return false;
+                        }
+                    }
                 }
 
                 return await Installer.PushPackage(App.Config, InputType, PKGStream!, URL, CurrentDecompressor, CurrentDecompressorVolumes, SetStatus, () => Status.Text, Silent);

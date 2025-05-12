@@ -3,7 +3,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Avalonia;
+using DirectPackageInstaller.IO;
+using DirectPackageInstaller.Tasks;
+using DirectPackageInstaller.Views;
 
 namespace DirectPackageInstaller
 {
@@ -85,6 +89,62 @@ namespace DirectPackageInstaller
 		        return -1;
 
 	        return ((long)Status.free_count + Status.inactive_count) * PageSize;
+        }
+
+        public static async Task<bool> EnsureFreeSpace(Stream? PKGStream, DecompressorHelperStream[]? DecompressorStreams, Source InputType)
+        {
+            bool AllocationRequired = InputType.HasFlag(Source.DiskCache) || InputType.HasFlag(Source.RAR) ||
+                                      InputType.HasFlag(Source.SevenZip) || InputType.HasFlag(Source.Segmented);
+
+            if (!AllocationRequired || PKGStream == null)
+                return true;
+
+            long MaxAllocationSize = PKGStream.Length;
+            if (DecompressorStreams != null)
+                MaxAllocationSize += DecompressorStreams.First().Length;
+
+            long FreeSpace = 0;
+            while (MaxAllocationSize > (FreeSpace = App.GetFreeStorageSpace()))
+            {
+                long Missing = MaxAllocationSize - FreeSpace;
+
+                var Message = $"{MaxAllocationSize.ToFileSize()} in your {(App.UseSDCard ? "SD card" : "internal storage")} is required, missing {Missing.ToFileSize()} currently.";
+
+                if (App.IsAndroid)
+                {
+                    var CurrentStorage = App.UseSDCard;
+                    App.UseSDCard = !CurrentStorage;
+
+                    var AltFreeSpace = App.GetFreeStorageSpace();
+                    var AltMissingSpace = MaxAllocationSize - AltFreeSpace;
+                    var AltStorageName = App.UseSDCard ? "SD card" : "internal storage";
+
+                    App.UseSDCard = CurrentStorage;
+
+                    if (AltFreeSpace > MaxAllocationSize)
+                    {
+                        App.UseSDCard = !CurrentStorage;
+                        continue;
+                    }
+
+                    Message += $"\nOr clean more {AltMissingSpace.ToFileSize()} in your {AltStorageName}.";
+                }
+
+                if (InputType.HasFlag(Source.Segmented))
+                    Message += "\nAlternatively, you can disable Segmented Download feature.";
+
+                if (!TempHelper.CacheIsEmpty() && Installer.Server is { Connections: 0 })
+                {
+                    TempHelper.Clear();
+                    continue;
+                }
+
+                var Result = await MessageBox.ShowAsync(Message, "DirectPackageInstaller", MessageBoxButtons.RetryCancel, MessageBoxIcon.Warning);
+                if (Result != DialogResult.Retry)
+                    return false;
+            }
+
+            return true;
         }
         public enum Flavor : int
         {

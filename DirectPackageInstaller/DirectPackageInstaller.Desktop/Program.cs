@@ -66,7 +66,7 @@ namespace DirectPackageInstaller.Desktop
 
             bool Proxy = false;
             string Server = null;
-            string PS4 = null;
+            string PSIP = null;
             string URL = null;
             int Port = 0;
             int DPIPort = 0;
@@ -94,7 +94,7 @@ namespace DirectPackageInstaller.Desktop
                     case "ps4ip":
                         if (i + 1 >= args.Length)
                             goto case "help";
-                        PS4 = args[++i];
+                        PSIP = args[++i];
                         break;
                     case "port":
                     case "binloader":
@@ -143,17 +143,17 @@ namespace DirectPackageInstaller.Desktop
 
             if (Server == null)
             {
-                if (PS4 != null)
+                if (PSIP != null)
                 {
-                    Server = IPHelper.FindLocalIP(PS4);
+                    Server = IPHelper.FindLocalIP(PSIP);
                 }
             }
 
-            if (PS4 == null)
+            if (PSIP == null)
             {
-                _ = PS4Finder.StartFinder((PSIP, PCIP) =>
+                _ = PS4Finder.StartFinder((NewPSIP, PCIP, VERSION) =>
                 {
-                    PS4 = PSIP.ToString();
+                    PSIP = NewPSIP.ToString();
                     
                     if (Server != null || PCIP == null)
                         return;
@@ -163,7 +163,7 @@ namespace DirectPackageInstaller.Desktop
                 
                 Console.WriteLine("Searching the PS4...");
                 
-                while (PS4 == null)
+                while (PSIP == null)
                 {
                     Task.Delay(1000).ConfigureAwait(false).GetAwaiter().GetResult();
                 }
@@ -178,13 +178,13 @@ namespace DirectPackageInstaller.Desktop
             
             Console.WriteLine($"LAN: {Server}");
 
-            if (PS4 == null)
+            if (PSIP == null)
             {
                 Console.WriteLine("Failed to Detect your PS4 IP");
                 return;
             }
             
-            Console.WriteLine($"PS4: {PS4}");
+            Console.WriteLine($"PS4: {PSIP}");
             
             if (URL == null)
             {
@@ -290,7 +290,7 @@ namespace DirectPackageInstaller.Desktop
 
             App.Config.PayloadPort = DPIPort;
 
-            bool Status = Installer.Payload.SendPKGPayload(PS4, Server, URL, true, false).ConfigureAwait(false).GetAwaiter().GetResult();
+            bool Status = Installer.Payload.SendPKGPayload(PSIP, Server, URL, true, false).ConfigureAwait(false).GetAwaiter().GetResult();
 
             if (!Status)
             {
