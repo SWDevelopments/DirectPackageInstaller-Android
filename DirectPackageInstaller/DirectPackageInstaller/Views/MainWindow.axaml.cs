@@ -45,7 +45,7 @@ namespace DirectPackageInstaller.Views
                 {
                     App.Callback(async () =>
                     {
-                        if (await MessageBox.ShowAsync("The PS4 is still downloading\nDo you really wanna exit?", "DirectPackageInstaller", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+                        if (await MessageBox.ShowAsync("The playstation is still downloading\nDo you really wanna exit?", "DirectPackageInstaller", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
                             return;
 
                         ForceClose = true;

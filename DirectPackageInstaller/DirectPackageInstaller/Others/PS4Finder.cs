@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -10,8 +11,8 @@ namespace DirectPackageInstaller
     {
         public const string SearchMessage = "SRCH * HTTP/1.1\ndevice-discovery-protocol-version:00030010\n";
         public static byte[] SearchData => Encoding.UTF8.GetBytes(SearchMessage);
-        
-        public static async Task StartFinder(Action<IPAddress, IPAddress?> OnFound)
+
+        public static async Task StartFinder(Action<IPAddress, IPAddress?, int> OnFound)
         {
             if (OnFound == null)
                 return;
@@ -27,23 +28,44 @@ namespace DirectPackageInstaller
             {
                 if (e.RemoteEndPoint is IPEndPoint)
                 {
+                    var socket = sender as Socket;
+
+                    if (socket is null)
+                        return;
+
                     var PS4IP = ((IPEndPoint) e.RemoteEndPoint).Address;
 
                     IPAddress? PCIP = null;
 
+                    string message = null;
+
+                    int SysVer = 4;
                     
                     //In case of the socket already disposed 
                     try
                     {
-                        PCIP = ((IPEndPoint?) ((Socket) sender).LocalEndPoint)?.Address;
+                        PCIP = ((IPEndPoint?) socket.LocalEndPoint)?.Address;
+                        
+                        var receivedData = e.MemoryBuffer.Slice(0, e.BytesTransferred).ToArray();
+                        message = Encoding.UTF8.GetString(receivedData);
+
+                        if (message.Contains("host-type"))
+                        {
+                            message = message.Substring(message.IndexOf("host-type"));
+                            message = message.Substring(0, message.IndexOf("\n"));
+
+                            if (message.Contains("PS5"))
+                                SysVer = 5;
+                        }
                     } catch { }
+
 
                     if (PCIP!= null && PCIP.Equals(IPAddress.Any))
                         PCIP = null;
                     
                     if (!PS4IP.Equals(IPAddress.Any))
                     {
-                        Found(PS4IP, PCIP);
+                        Found(PS4IP, PCIP, SysVer);
                         Searching = false;
                     }
                 }
@@ -85,9 +107,19 @@ namespace DirectPackageInstaller
 
                 for (int i = 0; i < 5; i++)
                 {
+                    //PS4
                     var SendTo = new SocketAsyncEventArgs()
                     {
                         RemoteEndPoint = new IPEndPoint(broadcastAddress, 987)
+                    };
+
+                    SendTo.SetBuffer(SearchData, 0, SearchData.Length);
+                    Discovery.SendToAsync(SendTo);
+
+                    //PS5
+                    SendTo = new SocketAsyncEventArgs()
+                    {
+                        RemoteEndPoint = new IPEndPoint(broadcastAddress, 9302)
                     };
 
                     SendTo.SetBuffer(SearchData, 0, SearchData.Length);

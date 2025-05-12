@@ -12,7 +12,7 @@ namespace DirectPackageInstaller
 
         public string AllDebridApiKey;
         public string RealDebridApiKey;
-        public string PS4IP;
+        public string PSIP;
         public string PCIP;
 
         public int? PayloadPort;

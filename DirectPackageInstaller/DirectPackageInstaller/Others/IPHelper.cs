@@ -103,5 +103,22 @@ namespace DirectPackageInstaller
             catch  { }
             return false;
         }
+
+        public static async Task<bool> IsEtaHenOnline(string IP)
+        {
+            if (!IPAddress.TryParse(IP, out _))
+                return false;
+
+            var APIUrl = $"http://{IP}:12800/";
+            try
+            {
+                using var Response = await Client.GetAsync(APIUrl);
+                var Resp = await Response.Content.ReadAsStringAsync();
+                if (Resp.Contains("etaHEN"))
+                    return true;
+            }
+            catch { }
+            return false;
+        }
     }
 }
