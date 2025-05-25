@@ -200,7 +200,7 @@ namespace DirectPackageInstaller.Tasks
 
                 foreach (var Volume in Volumes)
                 {
-                    if (Volume is PartialHttpStream volStream)
+                    if (Volume is NetworkStream volStream)
                         volStream.CloseConnection();
                 }
 

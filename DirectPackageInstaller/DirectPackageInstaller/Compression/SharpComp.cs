@@ -75,7 +75,7 @@ namespace DirectPackageInstaller.Compression
                 {
                     Strm.Info = TaskInfo;
                     
-                    if (!First && Strm.Base is PartialHttpStream strmBase)
+                    if (!First && Strm.Base is NetworkStream strmBase)
                         strmBase.CloseConnection();
                     
                     First = false;

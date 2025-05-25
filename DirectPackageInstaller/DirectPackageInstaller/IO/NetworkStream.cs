@@ -1,17 +1,20 @@
 ﻿using DirectPackageInstaller.FileHosts;
+using NFSLibrary;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Management;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Web;
+using NFSVersion = NFSLibrary.NFSClient.NFSVersion;
 
 namespace DirectPackageInstaller.IO
 {
-    public class PartialHttpStream : Stream, IDisposable
+    public class NetworkStream : Stream, IDisposable
     {
         public WebProxy Proxy = null;
 
@@ -44,24 +47,39 @@ namespace DirectPackageInstaller.IO
         private long cachePosition;
         private int cacheCount;
 
-        public PartialHttpStream(string url, int cacheLen = CacheLen)
+        private bool NFSMode = false;
+        private NFSClient nfsClient = null;
+        public NetworkStream(string url, int cacheLen = CacheLen)
         {
             if (string.IsNullOrEmpty(url))
                 throw new ArgumentException("url empty");
             if (cacheLen <= 0)
                 throw new ArgumentException("cacheLen must be greater than 0");
 
+            if (url.StartsWith("nfs:", StringComparison.InvariantCultureIgnoreCase))
+            {
+                NFSMode = true;
+                NetRead = NfsReader;
+            }
+            else
+            {
+                NetRead = HttpReader;
+            }
+
             Url = url;
             this.cacheLen = cacheLen;
             cache = new byte[cacheLen];
         }
 
-        ~PartialHttpStream()
+        ~NetworkStream()
         {
             Dispose();
         }
 
         public string Url { get; protected set; }
+
+        private string NfsPathOverride = null;
+        private string NfsPath => NfsPathOverride ?? new Uri(Url).AbsolutePath;
 
         public override bool CanRead => true;
         public override bool CanWrite => false;
@@ -77,7 +95,7 @@ namespace DirectPackageInstaller.IO
             get
             {
                 if (length == null)
-                    length = HttpGetLength();
+                    length = NFSMode ? NFSGetLength() : HttpGetLength();
                 return length ?? -1;
             }
         }
@@ -93,6 +111,14 @@ namespace DirectPackageInstaller.IO
         /// </summary>
         public void CloseConnection()
         {
+            if (nfsClient != null)
+            {
+                if (nfsClient.IsMounted)
+                    nfsClient.UnMountDevice();
+                if (nfsClient.IsConnected)
+                    nfsClient.Disconnect();
+                nfsClient = null;
+            }
 
             if (ResponseStream != null)
             {
@@ -148,7 +174,7 @@ namespace DirectPackageInstaller.IO
                     while (count > 0)
                     {
                         int Readed;
-                        Position += Readed = HttpRead(buffer, ref offset, ref count);
+                        Position += Readed = NetRead(buffer, ref offset, ref count);
 
                         if (Readed == 0 && EmptyTries-- < 0)
                             break;
@@ -162,7 +188,7 @@ namespace DirectPackageInstaller.IO
                     cachePosition = Position;
                     int off = 0;
                     int len = cacheLen;
-                    cacheCount = HttpRead(cache, ref off, ref len);
+                    cacheCount = NetRead(cache, ref off, ref len);
                     Position += ReadFromCache(buffer, ref offset, ref count);
                 }
 
@@ -217,7 +243,55 @@ namespace DirectPackageInstaller.IO
         Stream ResponseStream = null;
         long RespPos = 0;
 
-        private int HttpRead(byte[] buffer, ref int offset, ref int count, int Tries = 0)
+        private delegate int ReadHandler(byte[] buffer, ref int offset, ref int count, int Tries = 0);
+
+        private ReadHandler NetRead;
+
+        private int NfsReader(byte[] buffer, ref int offset, ref int count, int Tries = 0)
+        {
+            try
+            {
+                if (Position == Length)
+                    return 0;
+
+                if (!nfsClient.IsConnected || !nfsClient.IsMounted) {
+                    nfsClient = getNFSConnection();
+                }
+
+                int nread = 0;
+
+                byte[] target = null;
+               
+                nread = (int)nfsClient.Read(NfsPath, Position, Position + count, ref target);
+
+                nread = Math.Min(nread, count);
+
+                if (buffer.Length < nread + offset || target.Length < nread)
+                    System.Diagnostics.Debugger.Break();
+
+                Array.Copy(target, 0, buffer, offset, nread);
+
+                offset += nread;
+                count -= nread;
+
+                return nread;
+            }
+            catch
+            {
+                ResponseStream?.Dispose();
+                ResponseStream = null;
+
+                if (Tries < 3)
+                {
+                    RefreshUrl?.Invoke();
+                    return NetRead(buffer, ref offset, ref count, Tries + 1);
+                }
+
+                throw;
+            }
+        }
+
+        private int HttpReader(byte[] buffer, ref int offset, ref int count, int Tries = 0)
         {
             try
             {
@@ -323,7 +397,7 @@ namespace DirectPackageInstaller.IO
                     Thread.Sleep(Tries * 500);
 
                     RefreshUrl?.Invoke();
-                    return HttpRead(buffer, ref offset, ref count, Tries + 1);
+                    return NetRead(buffer, ref offset, ref count, Tries + 1);
                 }
 
                 throw;
@@ -339,7 +413,7 @@ namespace DirectPackageInstaller.IO
                 if (Tries < 3)
                 {
                     RefreshUrl?.Invoke();
-                    return HttpRead(buffer, ref offset, ref count, Tries + 1);
+                    return NetRead(buffer, ref offset, ref count, Tries + 1);
                 }
                 
                 if (ex is WebException)
@@ -359,7 +433,109 @@ namespace DirectPackageInstaller.IO
         }
 
         static Dictionary<string, (string Filename, long Length)> HeadCache = new Dictionary<string, (string Filename, long Length)>();
-        
+
+        private IPAddress getNFSIp()
+        {
+            var Host = new Uri(Url).Host;
+            if (IPAddress.TryParse(Host, out IPAddress? Address))
+                return Address;
+
+            return Dns.GetHostEntry(Host).AddressList.First();
+        }
+
+        private NFSClient getNFSConnection()
+        {
+            if (nfsClient != null && nfsClient.IsConnected)
+                return nfsClient;
+
+            NFSClient? client = null;
+
+            Exception lastError = null;
+
+            foreach (var version in new[] { NFSVersion.v4, NFSVersion.v3, NFSVersion.v2 })
+            {
+                try
+                {
+                    client = new NFSClient(version);
+                    client.Connect(getNFSIp());
+                    if (client.IsConnected)
+                        break;
+                }
+                catch (Exception ex){ 
+                    lastError = ex;
+                }
+            }
+
+            if (client == null || !client.IsConnected)
+                throw new IOException("NFS connection failed\n" + lastError?.Message);
+
+            var mounts = client.GetExportedDevices().ToArray();
+
+            if (mounts.Length >= 0)
+            {
+                //subPath is used to find the file in paths that include the mount point
+                string subPath = null;
+                string mountPoint = null;
+
+                if (NfsPath.Trim('/').Contains("/"))
+                {
+                    subPath = NfsPath.Trim('/');
+                    mountPoint = subPath.Substring(0, subPath.IndexOf("/"));
+                    subPath = subPath.Substring(subPath.IndexOf("/"));
+
+                    var mountQuery = mounts.Where(x => x.Trim('/').Equals(mountPoint));
+
+                    if (mountQuery.Any())
+                    {
+                        mounts = mountQuery.ToArray();
+                    }
+                }
+
+                foreach (var mount in mounts)
+                {
+                    try
+                    {
+                        if (client.IsMounted)
+                            client.UnMountDevice();
+
+                        client.MountDevice(mount);
+
+                        if (client.FileExists(NfsPath))
+                        {
+                            return client;
+                        }
+
+                        if (subPath != null && client.FileExists(subPath))
+                        {
+                            NfsPathOverride = subPath;
+                            return client;
+                        }
+                    }
+                    catch { }
+
+                }
+            }
+            else
+            {
+                client.MountDevice(mounts.First());
+            }
+
+
+            return client;
+        }
+
+        private long? NFSGetLength()
+        {
+            if (Url == null)
+                RefreshUrl?.Invoke();
+
+            nfsClient = getNFSConnection();
+
+            var attribs = nfsClient.GetItemAttributes(NfsPath, true);
+
+            return attribs.Size;
+        }
+
         private long? HttpGetLength(bool NoHead = false)
         {
             if (Url == null)

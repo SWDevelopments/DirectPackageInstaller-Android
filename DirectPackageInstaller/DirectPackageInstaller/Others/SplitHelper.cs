@@ -16,7 +16,7 @@ namespace DirectPackageInstaller
     static class SplitHelper
     {
         public static Stream OpenRemoteJSON(string URL) {
-            using (Stream Downloader = new PartialHttpStream(URL))
+            using (Stream Downloader = new NetworkStream(URL))
             using (MemoryStream Buffer = new MemoryStream())
             {
                 Downloader.CopyTo(Buffer);

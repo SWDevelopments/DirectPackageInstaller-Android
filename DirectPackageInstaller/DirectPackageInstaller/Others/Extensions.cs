@@ -125,7 +125,7 @@ public static class Extensions
         if (Source is DecompressorHelperStream decomp)
             Source = decomp.Base;
 
-        if (Source is PartialHttpStream httpStream)
+        if (Source is NetworkStream httpStream)
             return httpStream.Filename ?? Path.GetFileName(httpStream.FinalURL);
         return null;
     }

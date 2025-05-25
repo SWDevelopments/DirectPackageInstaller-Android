@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DirectPackageInstaller.IO
 {
-    public class FileHostStream : PartialHttpStream
+    public class FileHostStream : NetworkStream
     {
         static Dictionary<string, DownloadInfo> UrlCache = new Dictionary<string, DownloadInfo>();
 

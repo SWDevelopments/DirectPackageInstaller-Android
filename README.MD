@@ -8,23 +8,27 @@ This tool supports three different methods for sending PKGs:
 -   etaHEN DPIv2 API
     
 
-### Features
+Features
+----------
 
--   Preview PKG files    
--   Standalone PS4 package downloads    
+-   Preview PKG files
+-   Standalone PS4 package downloads
 -   PS5 etaHEN support
--   Automatic proxying to speed up PS4 downloads    
--   Support for RAR/7z compressed files    
--   Resumable downloads (only for uncompressed files)    
--   Segmented downloads    
--   Support for several file hosting services    
--   Support for PSN update manifests (split PKGs)    
--   Works with or without Remote Package Installer    
--   Command Line Interface (CLI)    
--   JDownloader Click'n Load support   
+-   Automatic proxying to speed up PS4 downloads
+-   Support for RAR/7z compressed files
+-   Resumable downloads (only for uncompressed files)
+-   Segmented downloads
+-   Support for several file hosting services
+-   Support for PSN update manifests (split PKGs)
+-   Works with or without Remote Package Installer
+-   Command Line Interface (CLI)
+-   JDownloader Click'n Load support
+-   Auto LAN Cable Connection (Windows Only)
+-   Can Install PKGs from NFS source
     
 
-### Supported File Hosting Services
+Supported File Hosting Services
+----------
 
 -   Any direct link (without authentication)    
 -   AllDebrid (API key required)    
@@ -35,11 +39,13 @@ This tool supports three different methods for sending PKGs:
 -   1Fichier (must wait 60 minutes after each download)
     
 
-### How to Install
+How to Install
+----------
 
 1.  Download and install the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime)    
 2.  Download a build compatible with your platform:
     
+Downloads:
 ----------
 
 <details> <summary>Windows</summary>
@@ -76,9 +82,9 @@ This tool supports three different methods for sending PKGs:
 
 </details>
 
-----------
 
-### How to Use
+How to Use
+----------
 
 #### Direct Download Mode
 
@@ -118,11 +124,9 @@ This tool supports three different methods for sending PKGs:
 4.  Click "Load" and wait.    
 5.  [Optional] Select the desired PKG from the file list.    
 6.  Click "Install" and wait.
-    
 
+macOS CLI Usage
 ----------
-
-### macOS CLI Usage
 
 Use the terminal to run the app:
 ```
@@ -133,8 +137,27 @@ In some cases, you may need to run:
 dotnet DirectPackageInstaller.Desktop.dll
 ```
 
-### How It Works
+NFS PKG Source
+----------
 
+To use an NFS server as a source for DPI, you just need to provide a URL in a format supported by DPI.
+There are two supported NFS URL formats:
+
+- `nfs://YOUR_NFS_IP_OR_HOSTNAME/ExportedPath/FilePath/FileName.pkg`
+
+- `nfs://YOUR_NFS_IP_OR_HOSTNAME/FilePath/FileName.pkg`
+
+In the first format, the path starts with the exact exported directory (as configured in the NFS server's /etc/exports).
+DPI will mount that specific export and look for the file within it.
+
+In the second format, no specific export path is provided. In this case, DPI will attempt to search across all available exports on the NFS server to locate the requested file.
+Note that this may slow down the initial access if your server has many exports.
+
+PS: The DPI is incompatible with the winnfsd due this bug [#88](https://github.com/winnfsd/winnfsd/issues/88), for windows, you can use [haneWIN NFS Server](https://www.hanewin.net/nfs-e.htm) instead.
+
+
+How It Works
+----------
 DirectPackageInstaller is a simple tool that uses the Remote Package Installer's API to add PKG downloads directly to your PS4 or PS5. It helps you preview and send packages easily.
 
 Additionally, the tool features an automatic proxy server to accelerate downloads. Since the PS4 has much better speeds over LAN than WAN, proxying through your PC can significantly improve performance.
@@ -145,9 +168,9 @@ When using compressed files (RAR/7z), everything happens in parallel: download, 
 
 Segmented mode downloads PKGs in parallel threads to your PC, while sending them to the console. It's the fastest option, though it won't show progress on the PS4 screen.
 
-----------
 
-### Command Line Interface (CLI)
+Command Line Interface (CLI)
+----------
 
 An experimental CLI is available.
 
@@ -158,15 +181,15 @@ To view available options:
 -   On other systems: `DirectPackageInstaller.Desktop -help`
     
 
+
+
+Dependencies
 ----------
-
-### Dependencies
-
 Requires [.NET 8.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime)
 
-----------
 
-### How to Build
+How to Build
+----------
 
 1.  Install the .NET 8.x SDK.    
 2.  Run the `Build.cmd` script (works on both Windows and Unix-like systems).    
@@ -174,7 +197,8 @@ Requires [.NET 8.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8
 
 For custom payloads, run `make` in the payload directory and replace the generated `payload.bin` inside `DirectPackageInstaller/DirectPackageInstaller/payload`.
 
-### Android builds:
+Android builds:
+----------
 -   Targets API level 26    
 -   Install Android SDK and NDK    
 -   Accept SDK licenses    
@@ -183,9 +207,8 @@ For custom payloads, run `make` in the payload directory and replace the generat
 
 Alternatively, fork the project and use GitHub Actions for builds.
 
+Q&A
 ----------
-
-### Q&A
 
 **My download is taking too long to start**  
 You're probably downloading a multipart compressed file. The more volumes, the longer it takes to scan and validate. This isn’t a bug — just how compressed file access works. Please be patient.
@@ -208,23 +231,20 @@ Some hosting sites (e.g., Zippyshare) are just slow. Try testing with Google Dri
 **I got an error during installation**  
 Open an issue! Seriously, don’t worry — mistakes happen. If there's a crash, check the `DPI-Crash.log` for details.
 
+Disclaimer
 ----------
-
-### Disclaimer
 
 This tool is for legitimate purposes only. It’s intended to help users install their personal backups. Piracy is not supported.  
 You are responsible for how you use this software.
 
+Warnings
 ----------
-
-### Warnings
 
 -   Avoid multiple parallel decompressions — process one file at a time.
 -   Compressed file downloads create a temporary PKG cache, requiring free disk space equal to the final PKG size.
 
+Credits
 ----------
-
-## Credits
 
 -   **LibOrbisPkg** by _maxton_
 -   **HttpServerLite** by _jchristn_

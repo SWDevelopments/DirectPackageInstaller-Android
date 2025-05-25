@@ -47,7 +47,7 @@ namespace DirectPackageInstaller
 
         const string UpdateList = "Update.ini";
 
-        public const string CurrentVersion = "8.3.0";
+        public const string CurrentVersion = "8.3.1";
         
         static Version CurrentVer = new Version(CurrentVersion);
 
@@ -353,7 +353,7 @@ namespace DirectPackageInstaller
             {
                 MemoryStream MEM = new MemoryStream();
 
-                PartialHttpStream File = new PartialHttpStream(URL);
+                NetworkStream File = new NetworkStream(URL);
                 File.CopyTo(MEM);
 
                 byte[] DATA = MEM.ToArray();
@@ -372,7 +372,7 @@ namespace DirectPackageInstaller
             {
                 MemoryStream MEM = new MemoryStream();
 
-                PartialHttpStream File = new PartialHttpStream(URL);
+                NetworkStream File = new NetworkStream(URL);
                 await File.CopyToAsync(MEM, 1024);
                 byte[] DATA = MEM.ToArray();
                 MEM.Close();
