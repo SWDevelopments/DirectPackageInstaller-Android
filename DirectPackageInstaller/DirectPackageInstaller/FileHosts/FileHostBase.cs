@@ -16,7 +16,7 @@ namespace DirectPackageInstaller.FileHosts
         public abstract  bool IsValidUrl(string URL);
         public abstract DownloadInfo GetDownloadInfo(string URL);
 
-        public const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36 DPI/" + SelfUpdate.CurrentVersion;
+        public const string UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36 DPI/" + SelfUpdate.CurrentVersion;
 
         protected string DownloadString(string URL, Cookie[]? Cookies = null)
         {
