@@ -50,11 +50,25 @@ namespace DirectPackageInstaller.FileHosts
                 HostsRegex = JsonSerializer.Deserialize<string[]>(Status, JSONContext.Default.Options);
             }
 
+            if (Uri.TryCreate(URL, UriKind.Absolute, out Uri rst) && rst.Host.Contains("real-debrid.com", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return false;
+            }
+
             foreach (var Host in HostsRegex) {
-                if (new Regex(Host, RegexOptions.None).IsMatch(URL))
-                    return true;
-                if (new Regex(Host.Trim('/'), RegexOptions.None).IsMatch(URL))
-                    return true;
+                try
+                {
+                    if (new Regex(Host, RegexOptions.None).IsMatch(URL))
+                        return true;
+                }
+                catch { }
+
+                try
+                {
+                    if (new Regex(Host.Trim('/'), RegexOptions.None).IsMatch(URL))
+                        return true;
+                }
+                catch { }
             }
 
             return false;

@@ -108,29 +108,79 @@ namespace DirectPackageInstaller.Desktop
                     case "help":
                     case "h":
                     case "?":
-                        Console.WriteLine("The DirectPackageInstaller can do only basic things currently.");
-                        Console.WriteLine("DirectPackageInstaller.Desktop -Server PKG_SENDER_PC_IP -PS4 PS4_IP -Port BIN_LOADER_PORT -DPIPort PKG_INFO_PORT [-Proxy] http://eaxample.com/game.pkg");
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("DirectPackageInstaller – Basic Usage");
+                        Console.ResetColor();
                         Console.WriteLine();
-                        Console.WriteLine("Where:");
+
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("Syntax:");
+                        Console.ResetColor();
+                        Console.WriteLine("  DirectPackageInstaller.Desktop -Server PKG_SENDER_PC_IP -PS4 PS4_IP -Port BIN_LOADER_PORT -DPIPort PKG_INFO_PORT [-Proxy] URL");
                         Console.WriteLine();
-                        Console.WriteLine("PKG_SENDER_PC_IP is the IP of the machine that are running the DirectPackageInstaller");
-                        Console.WriteLine("The IP is automatically set then is optional, but isn't safe if you have multiple network connections");
+
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("Parameters:");
+                        Console.ResetColor();
                         Console.WriteLine();
-                        Console.WriteLine("PS4 is the IP of your PS4 IP Address");
-                        Console.WriteLine("The IP will make the process faster, but still optional, but the DPI will take a time to find your PS4 IP");
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  PKG_SENDER_PC_IP");
+                        Console.ResetColor();
+                        Console.WriteLine("    The IP of the machine running DirectPackageInstaller.");
+                        Console.WriteLine("    Automatically detected (optional), but not reliable if multiple network connections exist.");
                         Console.WriteLine();
-                        Console.WriteLine("BIN_LOADER_PORT is the port of the running bin loader in the PS4");
-                        Console.WriteLine("By default the ports 9090, 9021 and 9020 are tried, then you usually don't need specify the port");
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  PS4_IP");
+                        Console.ResetColor();
+                        Console.WriteLine("    The IP address of your PS4.");
+                        Console.WriteLine("    Supplying it makes the process faster. Optional, but autodetection may take time.");
                         Console.WriteLine();
-                        Console.WriteLine("PKG_INFO_PORT is the DPI will listen for the PS4 be able to collect metadata about the PKG");
-                        Console.WriteLine("By default the port is automatically set by OS, and can be saved in Settings.ini file, or overwrited by this parameter.");
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  BIN_LOADER_PORT");
+                        Console.ResetColor();
+                        Console.WriteLine("    The port where the PS4 bin loader is running.");
+                        Console.WriteLine("    By default, ports 9090, 9021, and 9020 are tried. Usually no need to specify.");
                         Console.WriteLine();
-                        Console.WriteLine("The -Proxy parameter is optional, this will make the PS4 download url be proxied by the DirectPacakgeInstaller");
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  PKG_INFO_PORT");
+                        Console.ResetColor();
+                        Console.WriteLine("    The port DPI listens on so the PS4 can send PKG metadata.");
+                        Console.WriteLine("    By default, it is assigned by the OS.");
+                        Console.WriteLine("    Can be saved in Settings.ini or overridden via this parameter.");
                         Console.WriteLine();
-                        Console.WriteLine("The URL is the PKG URL, currently, must be a PKG file, RAR or 7Z files aren't accepted yet.");
-                        Console.WriteLine("Instead URL you can put a absolute file path as well.");
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  -Proxy (optional)");
+                        Console.ResetColor();
+                        Console.WriteLine("    Makes the PS4 download the PKG via DirectPackageInstaller as a proxy.");
                         Console.WriteLine();
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  URL");
+                        Console.ResetColor();
+                        Console.WriteLine("    The PKG file location.");
+                        Console.WriteLine("    Must be a direct .pkg file (RAR/7Z not supported yet).");
+                        Console.WriteLine("    You may also use an absolute file path.");
+                        Console.WriteLine("    TXT File list is also accepted, just ensure the file extension to be .txt");
+                        Console.WriteLine();
+
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("Example:");
+                        Console.ResetColor();
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  DirectPackageInstaller.Desktop -Server 192.168.1.10 -PS4 192.168.1.20 -Port 9090 -DPIPort 8080 -Proxy http://example.com/game.pkg");
+                        Console.ResetColor();
+                        Console.WriteLine();
+
+                        Console.ForegroundColor = ConsoleColor.DarkGray;
                         Console.WriteLine("DirectPackageInstaller - By Marcussacana");
+                        Console.ResetColor();
+
                         Console.ReadKey();
                         return;
                     default:
@@ -209,121 +259,150 @@ namespace DirectPackageInstaller.Desktop
 
             bool FileInput = !URL.StartsWith("http") && File.Exists(URL);
 
-            var DirectURL = URL;
+            bool ListInput = FileInput && Path.GetExtension(URL).Equals(".txt", StringComparison.InvariantCultureIgnoreCase);
 
 
-            Console.WriteLine($"Source: {DirectURL}");
+            string[] Entries = new[] { URL };
 
-            Stream PKG = null;
-
-            DownloaderTask? DownTask = null;
-
-            bool LimitedFHost = false;
-
-            if (FileInput)
+            if (ListInput)
             {
-                Proxy = true;
-                PKG = new FileStream(DirectURL, FileMode.Open);
-                URL = $"http://{Server}:{PSServer.Server.Settings.Port}/file/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
+                Entries = File.ReadAllLines(URL).Where(x => !string.IsNullOrWhiteSpace(x)).ToArray();
             }
-            else
-            {
-                var HostStream = new FileHostStream(DirectURL);
-                
-                if (HostStream.DirectLink && !HostStream.SingleConnection && !Proxy)
-                    URL = HostStream.Url;
-                
-                if ((!HostStream.DirectLink || Proxy) && !HostStream.SingleConnection)
+
+            for (var i = 0; i < Entries.Length; i++) {
+
+                var DirectURL = Entries[i];
+
+                FileInput = !URL.StartsWith("http") && File.Exists(URL);
+
+                if (Entries.Length == 1)
                 {
-                    Proxy = true;
-                    URL = $"http://{Server}:{PSServer.Server.Settings.Port}/proxy/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
-                }
-
-                if (HostStream.SingleConnection)
-                {
-                    HostStream.KeepAlive = true;
-                    
-                    Console.WriteLine("WARNING: Limited File Hosting - The given url is supported but not recommended.");
-                    DownTask = Downloader.CreateTask(URL, HostStream);
-
-                    PKG = new VirtualStream(DownTask?.OpenRead() ?? throw new Exception(), 0, DownTask?.SafeLength ?? 0) {
-                        ForceAmount = true
-                    };
-
-                    LimitedFHost = true;
+                    Console.WriteLine($"Source: {DirectURL}");
                 }
                 else
-                    PKG = HostStream;
+                {
+                    Console.WriteLine($"Source: {DirectURL} ({i}/{Entries.Length})");
+                }
+
+
+                Stream PKG = null;
+                try
+                {
+                    DownloaderTask? DownTask = null;
+
+                    bool LimitedFHost = false;
+
+                    if (FileInput)
+                    {
+                        Proxy = true;
+                        PKG = new FileStream(DirectURL, FileMode.Open);
+                        URL = $"http://{Server}:{PSServer.Server.Settings.Port}/file/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
+                    }
+                    else
+                    {
+                        var HostStream = new FileHostStream(DirectURL);
+
+                        if (HostStream.DirectLink && !HostStream.SingleConnection && !Proxy)
+                            URL = HostStream.Url;
+
+                        if ((!HostStream.DirectLink || Proxy) && !HostStream.SingleConnection)
+                        {
+                            Proxy = true;
+                            URL = $"http://{Server}:{PSServer.Server.Settings.Port}/proxy/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
+                        }
+
+                        if (HostStream.SingleConnection)
+                        {
+                            HostStream.KeepAlive = true;
+
+                            Console.WriteLine("WARNING: Limited File Hosting - The given url is supported but not recommended.");
+                            DownTask = Downloader.CreateTask(URL, HostStream);
+
+                            PKG = new VirtualStream(DownTask?.OpenRead() ?? throw new Exception(), 0, DownTask?.SafeLength ?? 0)
+                            {
+                                ForceAmount = true
+                            };
+
+                            LimitedFHost = true;
+                        }
+                        else
+                            PKG = HostStream;
+                    }
+
+                    var Info = PKG.GetPKGInfo();
+
+                    if (Info == null)
+                    {
+                        Console.WriteLine("Failed to get the PKG Info");
+                        return;
+                    }
+
+                    if (LimitedFHost)
+                    {
+                        Proxy = true;
+
+                        Console.WriteLine("Preloading PKG...");
+
+                        while (DownTask?.SafeReadyLength < Info?.PreloadLength)
+                            Task.Delay(1000).ConfigureAwait(false).GetAwaiter().GetResult();
+
+                        URL = $"http://{Server}:{PSServer.Server.Settings.Port}/cache/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
+                    }
+                    else
+                    {
+                        PKG.Close();
+                    }
+
+                    Console.WriteLine($"Pushing: {Info?.FriendlyName}");
+                    Console.WriteLine($"Title ID: {Info?.TitleID}");
+                    Console.WriteLine($"Content ID: {Info?.ContentID}");
+                    Console.WriteLine($"Type: {Info?.FirendlyContentType}");
+
+                    Installer.Server = PSServer;
+                    Installer.CurrentPKG = Info!.Value;
+
+                    App.Config.PayloadPort = DPIPort;
+
+                    bool Status = Installer.Payload.SendPKGPayload(PSIP, Server, URL, true, false).ConfigureAwait(false).GetAwaiter().GetResult();
+
+                    if (!Status)
+                    {
+                        Console.WriteLine("Failed to Send the PKG");
+                        return;
+                    }
+
+                    while (true)
+                    {
+                        Task.Delay(1000).ConfigureAwait(false).GetAwaiter().GetResult();
+
+                        if (PSServer.LastRequest == null)
+                            continue;
+
+                        if (PSServer.Connections > 0)
+                            continue;
+
+                        if (DownTask is { Running: true })
+                            continue;
+
+                        var IDLESeconds = (DateTime.Now - PSServer.LastRequest!.Value).TotalSeconds;
+
+                        if (Proxy && PSServer.LastRequestMode is "json" or null && IDLESeconds < 60)
+                            continue;
+
+                        if (IDLESeconds > 5)
+                            break;
+                    }
+
+                    TempHelper.Clear();
+
+                    Console.WriteLine("Sent!");
+                }
+                finally
+                {
+                    PKG?.Dispose();
+                }
             }
 
-            var Info = PKG.GetPKGInfo();
-
-            if (Info == null)
-            {
-                Console.WriteLine("Failed to get the PKG Info");
-                return;
-            }
-            
-            if (LimitedFHost)
-            {
-                Proxy = true;
-                
-                Console.WriteLine("Preloading PKG...");
-                
-                while (DownTask?.SafeReadyLength < Info?.PreloadLength)
-                    Task.Delay(1000).ConfigureAwait(false).GetAwaiter().GetResult();
-                
-                URL = $"http://{Server}:{PSServer.Server.Settings.Port}/cache/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
-            }
-            else
-            {
-                PKG.Close();
-            }
-            
-            Console.WriteLine($"Pushing: {Info?.FriendlyName}");
-            Console.WriteLine($"Title ID: {Info?.TitleID}");
-            Console.WriteLine($"Content ID: {Info?.ContentID}");
-            Console.WriteLine($"Type: {Info?.FirendlyContentType}");
-
-            Installer.Server = PSServer;
-            Installer.CurrentPKG = Info!.Value;
-
-            App.Config.PayloadPort = DPIPort;
-
-            bool Status = Installer.Payload.SendPKGPayload(PSIP, Server, URL, true, false).ConfigureAwait(false).GetAwaiter().GetResult();
-
-            if (!Status)
-            {
-                Console.WriteLine("Failed to Send the PKG");
-                return;
-            }
-
-            while (true)
-            {
-                Task.Delay(1000).ConfigureAwait(false).GetAwaiter().GetResult();
-                
-                if (PSServer.LastRequest == null)
-                    continue;
-                
-                if (PSServer.Connections > 0)
-                    continue;
-
-                if (DownTask is {Running: true})
-                    continue;
-
-                var IDLESeconds = (DateTime.Now - PSServer.LastRequest!.Value).TotalSeconds;
-                
-                if (Proxy && PSServer.LastRequestMode is "json" or null && IDLESeconds < 60)
-                    continue;
-
-                if (IDLESeconds > 5)
-                    break;
-            }
-            
-            TempHelper.Clear();
-            
-            Console.WriteLine("Sent!");
-            
             Environment.Exit(0);
         }
 
