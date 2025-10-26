@@ -79,6 +79,7 @@ namespace DirectPackageInstaller.Views
             btnRestartServer = this.Find<MenuItem>("btnRestartServer");
             btnAllDebirdEnabled = this.Find<MenuItem>("btnAllDebirdEnabled");
             btnRealDebirdEnabled = this.Find<MenuItem>("btnRealDebirdEnabled");
+            btnDebirdLinkEnabled = this.Find<MenuItem>("btnDebirdLinkEnabled");
             btnSegmentedDownload = this.Find<MenuItem>("btnSegmentedDownload");
             btnCNLService = this.Find<MenuItem>("btnCNLService");
             btnDHCPService = this.Find<MenuItem>("btnDHCPService");
@@ -90,6 +91,7 @@ namespace DirectPackageInstaller.Views
             btnProxyDownload.Click += BtnProxyDownloadOnClick;
             btnAllDebirdEnabled.Click += BtnAllDebirdEnabledOnClick;
             btnRealDebirdEnabled.Click += BtnRealDebirdEnabledOnClick;
+            btnDebirdLinkEnabled.Click += BtnDebirdLinkEnabledOnClick;
             btnSegmentedDownload.Click += BtnSegmentedDownloadOnClick;
             btnCNLService.Click += BtnCNLServiceOnClick;
             btnDHCPService.Click += BtnDHCPServiceOnClick;
@@ -138,7 +140,9 @@ namespace DirectPackageInstaller.Views
                 App.Config.UseAllDebrid = IniReader.GetBooleanValue("UseAllDebrid");
                 App.Config.AllDebridApiKey = IniReader.GetValue("AllDebridApiKey");
                 App.Config.UseRealDebrid = IniReader.GetBooleanValue("UseRealDebrid");
+                App.Config.UseDebridLink = IniReader.GetBooleanValue("UseDebridLink");
                 App.Config.RealDebridApiKey = IniReader.GetValue("RealDebridApiKey");
+                App.Config.DebridLinkApiKey = IniReader.GetValue("DebridLinkApiKey");
                 App.Config.EnableCNL = IniReader.GetBooleanValue("EnableCNL");
                 App.Config.ShowError = IniReader.GetBooleanValue("ShowError");
                 App.Config.SkipUpdateCheck = IniReader.GetBooleanValue("SkipUpdateCheck");
@@ -188,16 +192,18 @@ namespace DirectPackageInstaller.Views
                 await MessageBox.ShowAsync(WelcomeText, "DirectPackageInstaller", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
 
-             Model.DHCPService = App.Config.EnableDHCP;
-             Model.CNLService = App.Config.EnableCNL;
-             Model.ProxyMode = App.Config.ProxyDownload;
-             Model.UseAllDebrid = App.Config.UseAllDebrid;
-             Model.SegmentedMode = App.Config.SegmentedDownload;
-             Model.UseRealDebrid = App.Config.UseRealDebrid;
-             Model.PS4IP = App.Config.PSIP;
-             Model.PCIP = App.Config.PCIP;
-             Model.AllDebridApiKey = App.Config.AllDebridApiKey;
-             Model.RealDebridApiKey = App.Config.RealDebridApiKey;
+            Model.DHCPService = App.Config.EnableDHCP;
+            Model.CNLService = App.Config.EnableCNL;
+            Model.ProxyMode = App.Config.ProxyDownload;
+            Model.UseAllDebrid = App.Config.UseAllDebrid;
+            Model.UseDebridLink = App.Config.UseDebridLink;
+            Model.SegmentedMode = App.Config.SegmentedDownload;
+            Model.UseRealDebrid = App.Config.UseRealDebrid;
+            Model.PS4IP = App.Config.PSIP;
+            Model.PCIP = App.Config.PCIP;
+            Model.AllDebridApiKey = App.Config.AllDebridApiKey;
+            Model.RealDebridApiKey = App.Config.RealDebridApiKey;
+            Model.DebridLinkApiKey = App.Config.DebridLinkApiKey;
              
             if (App.Config.SearchPS4 || string.IsNullOrEmpty(App.Config.PSIP))
             {
@@ -816,11 +822,17 @@ namespace DirectPackageInstaller.Views
                 case "UseRealDebrid":
                     App.Config.UseRealDebrid = Model.UseRealDebrid;
                     break;
+                case "UseDebridLink":
+                    App.Config.UseDebridLink = Model.UseDebridLink;
+                    break;
                 case "AllDebridApiKey":
                     App.Config.AllDebridApiKey = Model.AllDebridApiKey;
                     break;
                 case "RealDebridApiKey":
                     App.Config.RealDebridApiKey = Model.RealDebridApiKey;
+                    break;
+                case "DebridLinkApiKey":
+                    App.Config.DebridLinkApiKey = Model.DebridLinkApiKey;
                     break;
                 case "DHCPService":
                     App.Config.EnableDHCP = Model.DHCPService;
@@ -893,6 +905,14 @@ namespace DirectPackageInstaller.Views
                 return;
             
             Model.UseRealDebrid = !Model.UseRealDebrid;
+        }
+
+        private void BtnDebirdLinkEnabledOnClick(object? sender, RoutedEventArgs e)
+        {
+            if (Model == null)
+                return;
+
+            Model.UseDebridLink = !Model.UseDebridLink;
         }
 
         private async Task<bool> Install(string URL, bool Silent)

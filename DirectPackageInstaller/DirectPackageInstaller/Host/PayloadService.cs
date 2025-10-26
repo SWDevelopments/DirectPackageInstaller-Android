@@ -342,24 +342,32 @@ namespace DirectPackageInstaller.Host
             if (Offset == -1)
                 return false;
 
-            ushort LocalPort = (ushort)((IPEndPoint)ServiceSocket.LocalEndPoint).Port;
+            try
+            {
+                ushort LocalPort = (ushort)((IPEndPoint)ServiceSocket.LocalEndPoint).Port;
 
-            var IP = IPAddress.Parse(PCIP).GetAddressBytes();
-            var Port = BitConverter.GetBytes(LocalPort).Reverse().ToArray();
+                var IP = IPAddress.Parse(PCIP).GetAddressBytes();
+                var Port = BitConverter.GetBytes(LocalPort).Reverse().ToArray();
 
-            IP.CopyTo(Payload, Offset);
-            Port.CopyTo(Payload, Offset + 4);
+                IP.CopyTo(Payload, Offset);
+                Port.CopyTo(Payload, Offset + 4);
 
-            PayloadSocket.SendBufferSize = Payload.Length;
+                PayloadSocket.SendBufferSize = Payload.Length;
 
-            if (PayloadSocket.Send(Payload) != Payload.Length)
+                if (PayloadSocket.Send(Payload) != Payload.Length)
+                    return false;
+
+                SocketAsyncEventArgs DisconnectEvent = new SocketAsyncEventArgs();
+                DisconnectEvent.RemoteEndPoint = PayloadSocket.RemoteEndPoint;
+
+                PayloadSocket.Disconnect(false);
+                PayloadSocket.Close();
+
+            }
+            catch (Exception ex)
+            {
                 return false;
-
-            SocketAsyncEventArgs DisconnectEvent = new SocketAsyncEventArgs();
-            DisconnectEvent.RemoteEndPoint = PayloadSocket.RemoteEndPoint;
-
-            PayloadSocket.Disconnect(false);
-            PayloadSocket.Close();
+            }
 
             return true;
         }

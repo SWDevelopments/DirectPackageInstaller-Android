@@ -55,6 +55,13 @@ namespace DirectPackageInstaller.ViewModels
             set => this.RaiseAndSetIfChanged(ref _realDebridApiKey, value);
         }
 
+        private string _debridLinkApiKey = null;
+        public string DebridLinkApiKey
+        {
+            get => _debridLinkApiKey;
+            set => this.RaiseAndSetIfChanged(ref _debridLinkApiKey, value);
+        }
+
         private bool _ProxyMode = false;
         public bool ProxyMode 
         {
@@ -83,6 +90,12 @@ namespace DirectPackageInstaller.ViewModels
             set => this.RaiseAndSetIfChanged(ref _useRealDebrid, value);
         }
 
+        private bool _useDebridLink = false;
+        public bool UseDebridLink
+        {
+            get => _useDebridLink;
+            set => this.RaiseAndSetIfChanged(ref _useDebridLink, value);
+        }
 
         private bool _CNLService = false;
         public bool CNLService 

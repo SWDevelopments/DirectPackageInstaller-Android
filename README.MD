@@ -30,12 +30,13 @@ Features
 Supported File Hosting Services
 ----------
 
--   Any direct link (without authentication)    
--   AllDebrid (API key required)    
--   RealDebrid ([API key required](https://real-debrid.com/apitoken))    
--   Google Drive (with or without authentication)    
--   Mediafire (no authentication required)    
--   PixelDrain    
+-   Any direct link (without authentication)
+-   AllDebrid ([API key required](https://alldebrid.com/apikeys/))
+-   RealDebrid ([API key required](https://real-debrid.com/apitoken))
+-   DebridLink ([API key required](https://debrid-link.com/webapp/apikey])
+-   Google Drive
+-   Mediafire
+-   PixelDrain
 -   1Fichier (must wait 60 minutes after each download)
     
 

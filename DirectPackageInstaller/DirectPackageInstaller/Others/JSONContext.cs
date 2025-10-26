@@ -7,6 +7,10 @@ namespace DirectPackageInstaller.Others
     [JsonSerializable(typeof(PKGManifest))]
     [JsonSerializable(typeof(AllDebridApi))]
     [JsonSerializable(typeof(RealdebirdApi))]
+    [JsonSerializable(typeof(UrlEntry))]
+    [JsonSerializable(typeof(DebridLinkRoot))]
+    [JsonSerializable(typeof(DebridLinkHostEntry))]
+    [JsonSerializable(typeof(DebridLinkApi))]
     public partial class JSONContext : JsonSerializerContext
     {
     }
@@ -69,4 +73,51 @@ namespace DirectPackageInstaller.Others
         public string download { get; set; }
         public int streamable { get; set; }
     }
+
+
+    public struct UrlEntry
+    {
+        public UrlEntry(string Url)
+        {
+            url = Url;
+        }
+        public string url { get; set; }
+    }
+
+    public struct DebridLinkRoot
+    {
+        public bool success { get; set; }
+
+        public List<DebridLinkHostEntry> value { get; set; }
+    }
+
+    public struct DebridLinkHostEntry
+    {
+        public string name { get; set; }
+        public string type { get; set; }
+        public List<string> hostnames { get; set; }
+        public List<string> regexs { get; set; }
+    }
+
+
+
+    public struct DebridLinkApi
+    {
+        public bool success { get; set; }
+        public string error { get; set; }
+        public DebridLinkApiValue value { get; set; }
+    }
+    public struct DebridLinkApiValue
+    {
+        public long created { get; set; }
+        public string id { get; set; }
+        public string name { get; set; }
+        public string url { get; set; }
+        public string downloadUrl { get; set; }
+        public bool expired { get; set; }
+        public int chunk { get; set; }
+        public string host { get; set; }
+        public long size { get; set; }
+    }
+
 }

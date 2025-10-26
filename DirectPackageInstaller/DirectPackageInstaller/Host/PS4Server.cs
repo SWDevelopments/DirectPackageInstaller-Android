@@ -101,7 +101,7 @@ namespace DirectPackageInstaller.Host
 
             int CID = ConnectionID++;
 
-            LOG("Request '{0}' Received: {1}", CID, Context.Request.Url.Full);;
+            LOG("Request '{0}' Received: {1}", CID, Context.Request.Url.Full);
 
             bool FromPS4 = false;
             var Path = Context.Request.Url.Full;

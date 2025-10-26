@@ -1,4 +1,5 @@
-﻿using DirectPackageInstaller.FileHosts;
+﻿using Avalonia.Platform;
+using DirectPackageInstaller.FileHosts;
 using NFSLibrary;
 using System;
 using System.Collections.Generic;
@@ -322,9 +323,8 @@ namespace DirectPackageInstaller.IO
                         resp?.Dispose();
                     }
 
-                    req = WebRequest.CreateHttp(Url);
-                    req.ConnectionGroupName = Guid.NewGuid().ToString();
-                    req.CookieContainer = Cookies;
+                    req = CreateNewRequest();
+
                     req.CachePolicy = new System.Net.Cache.RequestCachePolicy(System.Net.Cache.RequestCacheLevel.NoCacheNoStore);
                     req.UserAgent = FileHostBase.UserAgent;
 
@@ -550,12 +550,7 @@ namespace DirectPackageInstaller.IO
             HttpRequestsCount++;
             try
             {
-                HttpWebRequest request = WebRequest.CreateHttp(Url);
-                request.UserAgent = FileHostBase.UserAgent;
-                request.ConnectionGroupName = Guid.NewGuid().ToString();
-                request.KeepAlive = false;
-                request.CookieContainer = Cookies;
-                request.Proxy = Proxy;
+                HttpWebRequest request = CreateNewRequest();
                 request.Method = NoHead ? "GET" : "HEAD";
                 request.Timeout = 15000;
 
@@ -580,6 +575,28 @@ namespace DirectPackageInstaller.IO
             }
 
             return Length;
+        }
+
+        private HttpWebRequest CreateNewRequest()
+        {
+            HttpWebRequest request = WebRequest.CreateHttp(Url);
+            if (Uri.TryCreate(Url, UriKind.Absolute, out Uri? uri) && !string.IsNullOrWhiteSpace(uri.UserInfo))
+            {
+                if (uri.UserInfo.Contains(":"))
+                {
+                    request.Credentials = new NetworkCredential(
+                        Uri.UnescapeDataString(uri.UserInfo.Split(':').First()),
+                        Uri.UnescapeDataString(uri.UserInfo.Split(':').LastOrDefault() ?? "")
+                    );
+                    request.PreAuthenticate = true;
+                }
+            }
+            request.UserAgent = FileHostBase.UserAgent;
+            request.ConnectionGroupName = Guid.NewGuid().ToString();
+            request.KeepAlive = false;
+            request.CookieContainer = Cookies;
+            request.Proxy = Proxy;
+            return request;
         }
 
         void ReadResponseInfo(WebResponse Response)

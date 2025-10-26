@@ -158,6 +158,7 @@ namespace DirectPackageInstaller.Host
 
                 ((VirtualStream)RespData).ForceAmount = true;
 
+                Context.Request.Keepalive = true;
                 await Context.Response.SendAsync(Context.Response.ContentLength ?? TaskInfo.TotalSize, RespData);
             }
             finally

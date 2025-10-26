@@ -12,6 +12,7 @@ namespace DirectPackageInstaller
 
         public string AllDebridApiKey;
         public string RealDebridApiKey;
+        public string DebridLinkApiKey;
         public string PSIP;
         public string PCIP;
 
@@ -19,6 +20,7 @@ namespace DirectPackageInstaller
 
         public bool UseAllDebrid;
         public bool UseRealDebrid;
+        public bool UseDebridLink;
         public bool SearchPS4;
         public bool ProxyDownload;
         public bool SegmentedDownload;

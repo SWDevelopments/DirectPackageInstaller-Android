@@ -32,7 +32,10 @@ namespace DirectPackageInstaller
                 if (args.IsTerminating)
                 {
                     var ErrorInfo = args.ExceptionObject.ToString();
-                    File.WriteAllText("DPI-CARSH.log", ErrorInfo);
+                    if (App.IsAndroid)
+                        File.WriteAllText(Path.Combine(App.WorkingDirectory, "DPI-CRASH.log"), ErrorInfo);
+                    else
+                        File.WriteAllText("DPI-CRASH.log", ErrorInfo);
                 }
             };
             
@@ -139,6 +142,8 @@ namespace DirectPackageInstaller
                 IniWriter.SetValue("AllDebridApiKey", Config.AllDebridApiKey);
                 IniWriter.SetValue("UseRealDebrid", Config.UseRealDebrid.ToString());
                 IniWriter.SetValue("RealDebridApiKey", Config.RealDebridApiKey);
+                IniWriter.SetValue("UseDebridLink", Config.UseDebridLink.ToString());
+                IniWriter.SetValue("DebridLinkApiKey", Config.DebridLinkApiKey);
                 IniWriter.SetValue("EnableCNL", Config.EnableCNL.ToString());
                 IniWriter.SetValue("Concurrency", SegmentedStream.DefaultConcurrency.ToString());
                 IniWriter.SetValue("ShowError", Config.ShowError.ToString());

@@ -44,6 +44,14 @@ namespace DirectPackageInstaller
                     //In case of the socket already disposed 
                     try
                     {
+                        if (App.IsAndroid)
+                        {
+                            //If the socket is already disposed, on android, it's better to call a function
+                            //to let the exception be thrown here rather than inside LocalEndPoint Property
+                            //that due the LLVM otimization may fire as fatal exception
+                            socket.GetSocketOption(SocketOptionLevel.Socket, SocketOptionName.Error);
+                        }
+
                         PCIP = ((IPEndPoint?) socket.LocalEndPoint)?.Address;
                         
                         var receivedData = e.MemoryBuffer.Slice(0, e.BytesTransferred).ToArray();
