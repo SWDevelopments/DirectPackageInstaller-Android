@@ -33,7 +33,7 @@ Supported File Hosting Services
 -   Any direct link (without authentication)
 -   AllDebrid ([API key required](https://alldebrid.com/apikeys/))
 -   RealDebrid ([API key required](https://real-debrid.com/apitoken))
--   DebridLink ([API key required](https://debrid-link.com/webapp/apikey])
+-   DebridLink ([API key required](https://debrid-link.com/webapp/apikey]))
 -   Google Drive
 -   Mediafire
 -   PixelDrain

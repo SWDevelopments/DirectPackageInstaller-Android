@@ -586,7 +586,7 @@ namespace DirectPackageInstaller.IO
                 {
                     request.Credentials = new NetworkCredential(
                         Uri.UnescapeDataString(uri.UserInfo.Split(':').First()),
-                        Uri.UnescapeDataString(uri.UserInfo.Split(':').LastOrDefault() ?? "")
+                        Uri.UnescapeDataString(uri.UserInfo.Split(':').ElementAtOrDefault(1) ?? "")
                     );
                     request.PreAuthenticate = true;
                 }
