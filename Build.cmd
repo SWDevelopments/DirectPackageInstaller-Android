@@ -71,7 +71,8 @@ OSXPublish (){
 
    cd Release
 
-   unzip ../Files/OSXAppBase.zip -d ./tmp
+   mkdir -p tmp
+   cp -R ../Files/OSXAppBase/DirectPackageInstaller.app tmp/
    unzip $1.zip -d tmp/DirectPackageInstaller.app/Contents/MacOS
 
    # Ensure the launcher is executable even if zip permissions were lost.
@@ -274,7 +275,7 @@ exit
 :OSXBuild
 call :Build %1
 mkdir .\Release\tmp
-powershell Expand-Archive -LiteralPath ".\Files\OSXAppBase.zip" -DestinationPath ".\Release\tmp" -Force
+xcopy /E /I /Y ".\Files\OSXAppBase\DirectPackageInstaller.app" ".\Release\tmp\DirectPackageInstaller.app"
 powershell Expand-Archive -LiteralPath ".\Release\%1.zip" -DestinationPath ".\Release\tmp\DirectPackageInstaller.app\Contents\MacOS" -Force
 powershell Compress-Archive .\Release\tmp\* .\Release\%1-app.zip
 rmdir /s /q .\Release\tmp
