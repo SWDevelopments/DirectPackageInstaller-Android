@@ -1,0 +1,33 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CFBundleName</key>
+    <string>DirectPackageInstaller</string>
+    <key>CFBundleDisplayName</key>
+    <string>DirectPackageInstaller</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.directpackageinstaller.osx</string>
+    <key>CFBundleVersion</key>
+    <string>6.0.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleExecutable</key>
+    <string>DirectPackageInstaller.Desktop</string>
+    <key>CFBundleIconFile</key>
+    <string>Icon.icns</string>
+    <key>CFBundleShortVersionString</key>
+    <string>6.0.0</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSHighResolutionCapable</key>
+    <true />
+    <key>LSEnvironment</key>
+    <dict>
+      <key>DOTNET_ROOT</key>
+      <string>/opt/homebrew/opt/dotnet@8/libexec</string>
+    </dict>
+  </dict>
+</plist>

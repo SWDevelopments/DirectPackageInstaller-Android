@@ -43,8 +43,9 @@ Supported File Hosting Services
 How to Install
 ----------
 
-1.  Download and install the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime)    
-2.  Download a build compatible with your platform:
+1.  Download a build compatible with your platform (see below).
+2.  On Windows, Linux, and Android, install the [.NET 8 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime) first.
+    macOS builds are self-contained and do not require a separate .NET install.
     
 Downloads:
 ----------
@@ -76,10 +77,21 @@ Downloads:
 -   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64.zip)    
 -   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64.zip)    
 
-**App builds:**
+**App builds (zip):**
 
 -   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64-APP.zip)    
 -   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.zip)   
+
+**App builds (DMG, drag-to-Applications):**
+
+-   [ARM64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-ARM64-APP.dmg)    
+-   [x64](https://raw.githubusercontent.com/marcussacana/DirectPackageInstaller/Updater/OSX-X64-APP.dmg)
+
+macOS builds are self-contained (.NET 8 runtime bundled) and the .app is ad-hoc signed so it launches on Apple Silicon without further steps. If Gatekeeper still blocks the app after extracting the zip, run:
+
+```
+xattr -dr com.apple.quarantine /Applications/DirectPackageInstaller.app
+```
 
 </details>
 
@@ -186,7 +198,8 @@ To view available options:
 
 Dependencies
 ----------
-Requires [.NET 8.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime)
+Windows, Linux, and Android builds require the [.NET 8.0 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0/runtime).
+macOS builds are self-contained and ship with the runtime bundled.
 
 
 How to Build

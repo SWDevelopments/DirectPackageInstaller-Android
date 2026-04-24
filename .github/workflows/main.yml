@@ -1,58 +1,101 @@
-# This is a basic workflow to help you get started with Actions
-
 name: Build the DPI
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
   push:
     branches: [ DN8 ]
   pull_request:
     branches: [ DN8 ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  build-nonmac:
+    name: Build Windows / Linux / Android
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
-      
+
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'temurin'
-      
+
       - name: Setup Android SDK
-        uses:  android-actions/setup-android@v3
-        
+        uses: android-actions/setup-android@v3
+
       - name: Install NDK
         run: sdkmanager "ndk;24.0.8215888"
-        
+
       - uses: actions/setup-dotnet@v2
         with:
-            dotnet-version: '8.0.x'
+          dotnet-version: '8.0.x'
 
-      # Runs a single command using the runners shell
       - name: Building
+        env:
+          BUILD_TARGETS: win,linux,android
         run: |
-            git submodule init
-            git submodule update
-            dotnet workload install android
-            export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
-            sh  Build.cmd
+          git submodule init
+          git submodule update
+          dotnet workload install android
+          export ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          sh Build.cmd
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Releases
+          name: Releases-nonmac
           path: |
             Release
+
+  build-mac:
+    name: Build macOS (signed)
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Building
+        env:
+          BUILD_TARGETS: osx
+        run: |
+          git submodule init
+          git submodule update
+          sh Build.cmd
+
+      - name: Verify ad-hoc signature on arm64 .app
+        run: |
+          mkdir -p Release/verify
+          unzip -q Release/OSX-ARM64-APP.zip -d Release/verify
+          codesign -dvvv Release/verify/DirectPackageInstaller.app 2>&1 | tee /tmp/codesign.txt
+          grep -q "Signature=adhoc" /tmp/codesign.txt || { echo "FAIL: arm64 .app missing ad-hoc signature"; exit 1; }
+          rm -rf Release/verify
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Releases-mac
+          path: |
+            Release
+
+  collect:
+    name: Collect all artifacts
+    needs: [build-nonmac, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Releases-nonmac
+          path: Release
+      - uses: actions/download-artifact@v4
+        with:
+          name: Releases-mac
+          path: Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Releases
+          path: Release
