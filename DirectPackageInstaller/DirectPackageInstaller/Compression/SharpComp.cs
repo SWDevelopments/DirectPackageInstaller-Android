@@ -54,7 +54,7 @@ namespace DirectPackageInstaller.Compression
                 if (File.Exists(TmpFile))
                     File.Delete(TmpFile);
                 
-                using Stream Output = File.Open(TmpFile, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
+                using Stream Output = new FileStream(TmpFile, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite, TransferTuning.DiskBufferSize, TransferTuning.TempFileOptions);
 
                 long TDecomp = 0;
                 var InTrans = false;
@@ -62,7 +62,7 @@ namespace DirectPackageInstaller.Compression
                 var TaskInfo = new DecompressTaskInfo() {
                     EntryName = EntryName,
                     TotalSize = Entry.Size,
-                    Content = () => File.Open(TmpFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite),
+                    Content = () => new FileStream(TmpFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, TransferTuning.DiskBufferSize, TransferTuning.TempFileOptions),
                     Running = true,
                     TotalDecompressed = &TDecomp,
                     InSegmentTranstion = &InTrans,
@@ -89,7 +89,7 @@ namespace DirectPackageInstaller.Compression
                 try
                 {
                     int ReadTries = 0;
-                    var Buffer = new byte[1024 * 1024 * 1];
+                    var Buffer = new byte[TransferTuning.HttpServerBufferSize];
 
                     int Readed;
                     do

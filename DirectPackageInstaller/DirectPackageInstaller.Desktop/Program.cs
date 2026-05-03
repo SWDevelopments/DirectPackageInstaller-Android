@@ -65,6 +65,7 @@ namespace DirectPackageInstaller.Desktop
             Console.WriteLine($"DirectPacakgeInstaller v{SelfUpdate.CurrentVersion} - CLI");
 
             bool Proxy = false;
+            bool ShowProgress = false;
             string Server = null;
             string PSIP = null;
             string URL = null;
@@ -105,6 +106,9 @@ namespace DirectPackageInstaller.Desktop
                     case "proxy":
                         Proxy = true;
                         break;
+                    case "progress":
+                        ShowProgress = true;
+                        break;
                     case "help":
                     case "h":
                     case "?":
@@ -116,7 +120,7 @@ namespace DirectPackageInstaller.Desktop
                         Console.ForegroundColor = ConsoleColor.Yellow;
                         Console.WriteLine("Syntax:");
                         Console.ResetColor();
-                        Console.WriteLine("  DirectPackageInstaller.Desktop -Server PKG_SENDER_PC_IP -PS4 PS4_IP -Port BIN_LOADER_PORT -DPIPort PKG_INFO_PORT [-Proxy] URL");
+                        Console.WriteLine("  DirectPackageInstaller.Desktop -Server PKG_SENDER_PC_IP -PS4 PS4_IP -Port BIN_LOADER_PORT -DPIPort PKG_INFO_PORT [-Proxy] [-Progress] URL");
                         Console.WriteLine();
 
                         Console.ForegroundColor = ConsoleColor.Yellow;
@@ -157,6 +161,12 @@ namespace DirectPackageInstaller.Desktop
                         Console.WriteLine("  -Proxy (optional)");
                         Console.ResetColor();
                         Console.WriteLine("    Makes the PS4 download the PKG via DirectPackageInstaller as a proxy.");
+                        Console.WriteLine();
+
+                        Console.ForegroundColor = ConsoleColor.Cyan;
+                        Console.WriteLine("  -Progress (optional)");
+                        Console.ResetColor();
+                        Console.WriteLine("    Shows how much data the PS4 is reading from DirectPackageInstaller.");
                         Console.WriteLine();
 
                         Console.ForegroundColor = ConsoleColor.Cyan;
@@ -246,6 +256,26 @@ namespace DirectPackageInstaller.Desktop
                 Console.WriteLine($"Port: {Port}");
 
             PS4Server PSServer = new PS4Server(Server);
+            DateTime LastProgressUpdate = DateTime.MinValue;
+            if (ShowProgress)
+            {
+                PSServer.TransferProgressChanged += Info =>
+                {
+                    var Now = DateTime.Now;
+                    if (!Info.Completed && (Now - LastProgressUpdate).TotalMilliseconds < 500)
+                        return;
+
+                    LastProgressUpdate = Now;
+                    var Sent = TransferProgressInfo.FormatBytes(Info.BytesSent);
+                    var Total = TransferProgressInfo.FormatBytes(Info.TotalBytes);
+                    var Speed = TransferProgressInfo.FormatBytes(Info.BytesPerSecond);
+
+                    if (Info.Completed)
+                        Console.WriteLine($"\rSent {Sent} / {Total}                    ");
+                    else
+                        Console.Write($"\rSending {Sent} / {Total} ({Info.Percent:P1}) - {Speed}/s        ");
+                };
+            }
             
             try
             {
@@ -296,7 +326,7 @@ namespace DirectPackageInstaller.Desktop
                     {
                         Proxy = true;
                         PKG = new FileStream(DirectURL, FileMode.Open);
-                        URL = $"http://{Server}:{PSServer.Server.Settings.Port}/file/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
+                        URL = $"http://{Server}:{PSServer.Port}/file/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
                     }
                     else
                     {
@@ -308,7 +338,7 @@ namespace DirectPackageInstaller.Desktop
                         if ((!HostStream.DirectLink || Proxy) && !HostStream.SingleConnection)
                         {
                             Proxy = true;
-                            URL = $"http://{Server}:{PSServer.Server.Settings.Port}/proxy/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
+                            URL = $"http://{Server}:{PSServer.Port}/proxy/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
                         }
 
                         if (HostStream.SingleConnection)
@@ -346,7 +376,7 @@ namespace DirectPackageInstaller.Desktop
                         while (DownTask?.SafeReadyLength < Info?.PreloadLength)
                             Task.Delay(1000).ConfigureAwait(false).GetAwaiter().GetResult();
 
-                        URL = $"http://{Server}:{PSServer.Server.Settings.Port}/cache/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
+                        URL = $"http://{Server}:{PSServer.Port}/cache/?b64={Convert.ToBase64String(Encoding.UTF8.GetBytes(URL))}";
                     }
                     else
                     {

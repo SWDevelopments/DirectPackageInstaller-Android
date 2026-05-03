@@ -147,6 +147,7 @@ namespace DirectPackageInstaller
                 IniWriter.SetValue("EnableCNL", Config.EnableCNL.ToString());
                 IniWriter.SetValue("Concurrency", SegmentedStream.DefaultConcurrency.ToString());
                 IniWriter.SetValue("ShowError", Config.ShowError.ToString());
+                IniWriter.SetValue("ShowTransferProgress", Config.ShowTransferProgress.ToString());
                 IniWriter.SetValue("SkipUpdateCheck", Config.SkipUpdateCheck.ToString());
                 IniWriter.SetValue("EthernetAdapter", Config.EthernetAdapter);
                 IniWriter.SetValue("EnableDHCP", Config.EnableDHCP.ToString());

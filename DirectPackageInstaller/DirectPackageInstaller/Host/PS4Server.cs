@@ -31,22 +31,28 @@ namespace DirectPackageInstaller.Host
         static TextWriter? LOGWRITER = null;
         public int Connections { get; private set; } = 0;
 
+        public static event Action<TransferProgressInfo>? GlobalTransferProgressChanged;
+        public event Action<TransferProgressInfo>? TransferProgressChanged;
+        public TransferProgressInfo? LastTransferProgress { get; private set; }
+
         public string LastRequestMode = null;
         public Webserver Server { get; private set; }
 
         public DecompressService Decompress = new DecompressService();
 
         public string IP { get => Server.Settings.Hostname; }
+        public int Port { get => Server.Settings.Port; }
         public PS4Server(string IP, int Port = 9898)
         {
             Server = new Webserver(new WebserverSettings(IP, Port)
             {
                 IO = new WebserverSettings.IOSettings()
                 {
-                    ReadTimeoutMs = 1000 * 60 * 5,
-                    StreamBufferSize = 1024 * 1024 * 2
+                    ReadTimeoutMs = TransferTuning.HttpServerReadTimeoutMs,
+                    StreamBufferSize = TransferTuning.HttpServerBufferSize
                 }
             });
+            Decompress.ProgressReporter = ReportTransferProgress;
 
 #if DEBUG
             if (LOGWRITER == null)
@@ -92,6 +98,13 @@ namespace DirectPackageInstaller.Host
             }
             catch { }
             LOG("Server Stopped");
+        }
+
+        private void ReportTransferProgress(TransferProgressInfo Info)
+        {
+            LastTransferProgress = Info;
+            TransferProgressChanged?.Invoke(Info);
+            GlobalTransferProgressChanged?.Invoke(Info);
         }
 
         private static int ConnectionID = 0;
@@ -186,7 +199,13 @@ namespace DirectPackageInstaller.Host
             Context.Response.StatusCode = Partial ? 206 : 200;
             Context.Response.StatusDescription = Partial ? "Partial Content" : "OK";
 
-            Stream Origin = System.IO.File.Open(Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            Stream Origin = new FileStream(
+                Path,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                TransferTuning.DiskBufferSize,
+                TransferTuning.LocalPackageFileOptions);
 
             try
             {
@@ -281,7 +300,7 @@ namespace DirectPackageInstaller.Host
             Context.Response.StatusDescription = Partial ? "Partial Content" : "OK";
 
             FileHostStream HttpStream;
-            HttpStream = new FileHostStream(Url, 1024 * 8);
+            HttpStream = new FileHostStream(Url);
 
             try
             {
@@ -344,7 +363,13 @@ namespace DirectPackageInstaller.Host
                         else if (SubQuery.AllKeys.Contains("b64"))
                             File = Encoding.UTF8.GetString(Convert.FromBase64String(SubQuery["b64"]));
 
-                        Source = System.IO.File.Open(File, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        Source = new FileStream(
+                            File,
+                            FileMode.Open,
+                            FileAccess.Read,
+                            FileShare.Read,
+                            TransferTuning.DiskBufferSize,
+                            TransferTuning.LocalPackageFileOptions);
                     }
                 }
             }
@@ -402,11 +427,13 @@ namespace DirectPackageInstaller.Host
 
             try
             {
-                Context.Response.ContentLength = Origin.Length;
+                long totalLength = Origin.Length;
+                Context.Response.ContentLength = totalLength;
 
                 Context.Response.Headers["Connection"] = "Keep-Alive";
-                Context.Response.Headers["Accept-Ranges"] = "none";
+                Context.Response.Headers["Accept-Ranges"] = "bytes";
                 Context.Response.Headers["Content-Type"] = ContentType ?? "application/octet-stream";
+                Context.Request.Keepalive = true;
 
                 if (ContentType == null) {
                     if (Origin is FileHostStream)
@@ -418,19 +445,85 @@ namespace DirectPackageInstaller.Host
                 
                 if (Partial)
                 {
-                    Context.Response.ContentLength = Range?.Length ?? Origin.Length - Range?.Begin ?? Origin.Length;
-                    Context.Response.Headers["Content-Range"] = $"bytes {Range?.Begin ?? 0}-{Range?.End ?? Origin.Length}/{Origin.Length}";
+                    long rangeStart = GetRangeStart(Range, totalLength);
+                    long rangeLength = GetRangeLength(Range, totalLength);
+                    long rangeEnd = rangeStart + rangeLength - 1;
 
-                    Origin = new VirtualStream(Origin, Range?.Begin ?? 0, Context.Response.ContentLength.Value);
+                    if (rangeLength == 0)
+                    {
+                        Context.Response.StatusCode = 416;
+                        Context.Response.StatusDescription = "Range Not Satisfiable";
+                        Context.Response.Headers["Content-Range"] = $"bytes */{totalLength}";
+                        Context.Response.Send(true);
+                        return;
+                    }
+
+                    Context.Response.ContentLength = rangeLength;
+                    Context.Response.Headers["Content-Range"] = $"bytes {rangeStart}-{rangeEnd}/{totalLength}";
+
+                    Origin = new VirtualStream(Origin, rangeStart, rangeLength);
                 }
 
                 LOG("Response Context: {0}", Context.Request.Url.Full);
                 LOG("Content Length: {0}", Context.Response.ContentLength);
 
-                Origin = new BufferedStream(Origin);
+                var transferStart = Partial ? ((VirtualStream?)Origin)?.FilePos ?? 0 : 0;
+                var responseLength = Context.Response.ContentLength.Value;
+                var trackProgress = ContentType == null && responseLength > 0;
+                var transferStarted = DateTime.Now;
+                long responseSent = 0;
+                object progressLock = new object();
+
+                Origin = new BufferedStream(Origin, TransferTuning.HttpServerBufferSize);
+
+                if (trackProgress)
+                {
+                    ReportTransferProgress(new TransferProgressInfo(
+                        Context.Request.Url.Full,
+                        transferStart,
+                        totalLength,
+                        0,
+                        responseLength,
+                        transferStarted,
+                        DateTime.Now,
+                        false));
+
+                    Origin = new TransferProgressStream(Origin, read =>
+                    {
+                        TransferProgressInfo ProgressInfo;
+                        lock (progressLock)
+                        {
+                            responseSent += read;
+                            ProgressInfo = new TransferProgressInfo(
+                                Context.Request.Url.Full,
+                                transferStart + responseSent,
+                                totalLength,
+                                responseSent,
+                                responseLength,
+                                transferStarted,
+                                DateTime.Now,
+                                false);
+                        }
+
+                        ReportTransferProgress(ProgressInfo);
+                    });
+                }
 
                 var Token = new CancellationTokenSource();
                 await Context.Response.SendAsync(Context.Response.ContentLength.Value, Origin, Token.Token);
+
+                if (trackProgress)
+                {
+                    ReportTransferProgress(new TransferProgressInfo(
+                        Context.Request.Url.Full,
+                        transferStart + responseLength,
+                        totalLength,
+                        responseLength,
+                        responseLength,
+                        transferStarted,
+                        DateTime.Now,
+                        true));
+                }
             }
             finally
             {
@@ -439,6 +532,34 @@ namespace DirectPackageInstaller.Host
                 Origin?.Dispose();
                 GC.Collect();
             }
+        }
+
+        private static long GetRangeStart(HttpRange? Range, long TotalLength)
+        {
+            if (!Range.HasValue)
+                return 0;
+
+            if (Range.Value.Begin < 0)
+                return 0;
+
+            if (Range.Value.Begin > TotalLength)
+                return TotalLength;
+
+            return Range.Value.Begin;
+        }
+
+        private static long GetRangeLength(HttpRange? Range, long TotalLength)
+        {
+            long Start = GetRangeStart(Range, TotalLength);
+            long End = Range?.End ?? TotalLength - 1;
+
+            if (End >= TotalLength)
+                End = TotalLength - 1;
+
+            if (End < Start)
+                return 0;
+
+            return End - Start + 1;
         }
         
         public string RegisterJSON(string URL, string PCIP, PKGHelper.PKGInfo Info, bool AutoSplit)

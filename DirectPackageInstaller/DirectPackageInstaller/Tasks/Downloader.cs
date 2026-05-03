@@ -27,7 +27,7 @@ namespace DirectPackageInstaller.Tasks
 
             string TempFile = TempHelper.GetTempFile(URL + "DownTask");
 
-            var NewTask = new DownloaderTask(URL, TempFile, () => File.Open(TempFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
+            var NewTask = new DownloaderTask(URL, TempFile, () => new FileStream(TempFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, TransferTuning.DiskBufferSize, TransferTuning.TempFileOptions));
             NewTask.Running = true;
 
             BackgroundWorker Worker = new BackgroundWorker();
@@ -59,14 +59,14 @@ namespace DirectPackageInstaller.Tasks
             var This = (DownloaderTask)((object[])e.Argument)[0];
             var Stream = (Stream)((object[])e.Argument)[1] ?? new FileHostStream(This.Url);
 
-            This.OpenRead = () => File.Open(This.TempFile, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+            This.OpenRead = () => new FileStream(This.TempFile, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite, TransferTuning.DiskBufferSize, TransferTuning.TempFileOptions);
 
             try
             {
-                using (Stream Output = File.Open(This.TempFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite))
-                using (Stream Input = new BufferedStream(Stream))
+                using (Stream Output = new FileStream(This.TempFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite, TransferTuning.DiskBufferSize, TransferTuning.TempFileOptions))
+                using (Stream Input = new BufferedStream(Stream, TransferTuning.NetworkBufferSize))
                 {
-                    byte[] Buffer = new byte[1024 * 1024 * 5];
+                    byte[] Buffer = new byte[TransferTuning.HttpServerBufferSize];
 
                     int Readed;
                     do

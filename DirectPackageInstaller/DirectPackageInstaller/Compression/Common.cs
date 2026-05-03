@@ -104,7 +104,7 @@ namespace DirectPackageInstaller.Compression
                     if (Buffer == null) {
                         Buffer = () =>
                         {
-                            var Stream = new FileStream(TempFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 1024 * 1024 * 2, FileOptions.RandomAccess | FileOptions.WriteThrough);
+                            var Stream = new FileStream(TempFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, TransferTuning.DiskBufferSize, TransferTuning.TempFileOptions);
                             Args.This.Instances.Add(Stream);
                             return Stream;
                         };
