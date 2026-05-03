@@ -251,27 +251,15 @@ namespace DirectPackageInstaller.Host
             if (!Range.HasValue)
                 return 0;
 
-            if (Range.Value.Begin < 0)
-                return 0;
-
-            if (Range.Value.Begin > TotalLength)
-                return TotalLength;
-
-            return Range.Value.Begin;
+            return Range.Value.GetStart(TotalLength);
         }
 
         private static long GetRangeLength(HttpRange? Range, long TotalLength)
         {
-            long Start = GetRangeStart(Range, TotalLength);
-            long End = Range?.End ?? TotalLength - 1;
+            if (!Range.HasValue)
+                return TotalLength;
 
-            if (End >= TotalLength)
-                End = TotalLength - 1;
-
-            if (End < Start)
-                return 0;
-
-            return End - Start + 1;
+            return Range.Value.GetLength(TotalLength);
         }
     }
 }
