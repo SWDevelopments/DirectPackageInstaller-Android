@@ -87,8 +87,8 @@ namespace DirectPackageInstaller.IO
                 if (File.Exists(TempFile))
                     File.Delete(TempFile);
                 
-                Buffer           = new FileStream(TempFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite, BufferSize, FileOptions.RandomAccess | FileOptions.WriteThrough);
-                OpenBuffer = () => new FileStream(TempFile, FileMode.Open,      FileAccess.ReadWrite, FileShare.ReadWrite, BufferSize, FileOptions.RandomAccess | FileOptions.WriteThrough);
+                Buffer           = new FileStream(TempFile, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite, BufferSize, TransferTuning.TempFileOptions);
+                OpenBuffer = () => new FileStream(TempFile, FileMode.Open,      FileAccess.ReadWrite, FileShare.ReadWrite, BufferSize, TransferTuning.TempFileOptions);
 
                 ReaderStream = OpenBuffer();
             }
@@ -116,7 +116,7 @@ namespace DirectPackageInstaller.IO
 
             lock (SegmentProgress)
             {
-                Segments.Add(new VirtualStream(new BufferedStream(First), 0, First.Length)
+                Segments.Add(new VirtualStream(new BufferedStream(First, BufferSize), 0, First.Length)
                 {
                     ForceAmount = true
                 });
@@ -177,7 +177,7 @@ namespace DirectPackageInstaller.IO
 
                         lock (SegmentProgress)
                         {
-                            Segments.Add(new VirtualStream(new BufferedStream(OpenSegment()), NewSegOffset, NewReaming)
+                            Segments.Add(new VirtualStream(new BufferedStream(OpenSegment(), BufferSize), NewSegOffset, NewReaming)
                             {
                                 ForceAmount = true
                             });

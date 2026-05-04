@@ -75,6 +75,13 @@ namespace DirectPackageInstaller.ViewModels
             get => _SegmentedMode;
             set => this.RaiseAndSetIfChanged(ref _SegmentedMode, value);
         }
+
+        private bool _ShowTransferProgress = true;
+        public bool ShowTransferProgress
+        {
+            get => _ShowTransferProgress;
+            set => this.RaiseAndSetIfChanged(ref _ShowTransferProgress, value);
+        }
         
         private bool _useAllDebrid = false;
         public bool UseAllDebrid 

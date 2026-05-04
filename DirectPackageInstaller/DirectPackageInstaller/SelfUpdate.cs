@@ -20,9 +20,12 @@ namespace DirectPackageInstaller
             {
                 try
                 {
+                    if (!string.IsNullOrWhiteSpace(Environment.ProcessPath) && File.Exists(Environment.ProcessPath))
+                        return Environment.ProcessPath;
+
                     var MainAssembly = System.Reflection.Assembly.GetEntryAssembly()?.Location;
 
-                    if (MainAssembly == null)
+                    if (string.IsNullOrWhiteSpace(MainAssembly))
                         return null;
 
                     if (File.Exists(Path.ChangeExtension(MainAssembly, "exe")))
@@ -250,9 +253,15 @@ namespace DirectPackageInstaller
 
             if (Directory.Exists(TempUpdateDir))
                 Directory.Delete(TempUpdateDir, true);
-                
-            if (File.Exists(Path.Combine(Path.GetDirectoryName(MainExecutable), "DirectPackageInstaller.exe")))
-                Delete(Path.Combine(Path.GetDirectoryName(MainExecutable), "DirectPackageInstaller.exe"));
+
+            var ExecutableDir = Path.GetDirectoryName(MainExecutable);
+            if (string.IsNullOrWhiteSpace(ExecutableDir))
+                return false;
+
+            var OldExecutable = Path.Combine(ExecutableDir, "DirectPackageInstaller.exe");
+            if (File.Exists(OldExecutable))
+                Delete(OldExecutable);
+
             return false;
         }
 

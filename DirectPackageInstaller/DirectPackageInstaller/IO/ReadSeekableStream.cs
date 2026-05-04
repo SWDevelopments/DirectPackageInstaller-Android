@@ -21,11 +21,12 @@ namespace DirectPackageInstaller
                 throw new Exception("Provided stream " + Input + " is not readable");
 
             InputStream = Input;
+            this.TempFile = TempFile;
             
             if (File.Exists(this.TempFile))
                 File.Delete(this.TempFile);
 
-            Buffer = new FileStream(this.TempFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.RandomAccess);
+            Buffer = new FileStream(this.TempFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, TransferTuning.DiskBufferSize, TransferTuning.TempFileOptions);
         }
         public ReadSeekableStream(Stream Input)
         {
@@ -34,7 +35,7 @@ namespace DirectPackageInstaller
 
             InputStream = Input;
 
-            Buffer = new FileStream(TempFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.RandomAccess);
+            Buffer = new FileStream(TempFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite, TransferTuning.DiskBufferSize, TransferTuning.TempFileOptions);
         }
 
         public override bool CanRead { get { return true; } }
@@ -55,7 +56,7 @@ namespace DirectPackageInstaller
                     else
                     {
                         int sReaded;
-                        byte[] buff = new byte[1024 * 8];
+                        byte[] buff = new byte[TransferTuning.NetworkBufferSize];
                         do
                         {
                             sReaded = InputStream.Read(buff, 0, (int)(MustSkip > buff.Length ? buff.Length : MustSkip));
@@ -106,7 +107,7 @@ namespace DirectPackageInstaller
 
         long Copy(Stream From, Stream To, long Length) {
 
-            byte[] Buffer = new byte[1024 * 100];
+            byte[] Buffer = new byte[TransferTuning.NetworkBufferSize];
             long TotalReaded = 0;
             int Readed;
             do

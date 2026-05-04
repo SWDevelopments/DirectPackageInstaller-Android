@@ -1,8 +1,10 @@
 ﻿using DirectPackageInstaller.Compression;
 using HttpServerLite;
+using DirectPackageInstaller.IO;
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -11,6 +13,8 @@ namespace DirectPackageInstaller.Host
     public class DecompressService
     {
         const long MaxSkipBufferSize = 1024 * 1024 * 100;
+
+        public Action<TransferProgressInfo>? ProgressReporter { get; set; }
 
         private readonly Dictionary<string, int> Instances = new Dictionary<string, int>();
 
@@ -142,24 +146,96 @@ namespace DirectPackageInstaller.Host
             try
             {
                 Context.Response.Headers["Connection"] = "Keep-Alive";
-                Context.Response.Headers["Accept-Ranges"] = "none";
+                Context.Response.Headers["Accept-Ranges"] = "bytes";
                 Context.Response.Headers["Content-Type"] = "application/octet-stream";
+                Context.Request.Keepalive = true;
+
+                long transferStart = 0;
+                long responseLength = TaskInfo.TotalSize;
 
                 if (Partial)
                 {
-                    Context.Response.ContentLength = Range?.Length ?? TaskInfo.TotalSize - Range?.Begin ?? TaskInfo.TotalSize;
-                    Context.Response.Headers["Content-Range"] = $"bytes {Range?.Begin ?? 0}-{Range?.End ?? TaskInfo.TotalSize}/{TaskInfo.TotalSize}";
+                    long rangeStart = GetRangeStart(Range, TaskInfo.TotalSize);
+                    long rangeLength = GetRangeLength(Range, TaskInfo.TotalSize);
+                    long rangeEnd = rangeStart + rangeLength - 1;
 
-                    RespData = new VirtualStream(RespData, Range?.Begin ?? 0, Context.Response.ContentLength.Value);
+                    if (rangeLength == 0)
+                    {
+                        Context.Response.StatusCode = 416;
+                        Context.Response.StatusDescription = "Range Not Satisfiable";
+                        Context.Response.Headers["Content-Range"] = $"bytes */{TaskInfo.TotalSize}";
+                        Context.Response.Send(true);
+                        return;
+                    }
+
+                    Context.Response.ContentLength = rangeLength;
+                    Context.Response.Headers["Content-Range"] = $"bytes {rangeStart}-{rangeEnd}/{TaskInfo.TotalSize}";
+
+                    RespData = new VirtualStream(RespData, rangeStart, rangeLength);
+                    transferStart = rangeStart;
+                    responseLength = rangeLength;
 
                 }
                 else
+                {
+                    Context.Response.ContentLength = TaskInfo.TotalSize;
                     RespData = new VirtualStream(RespData, 0, TaskInfo.TotalSize);
+                }
 
                 ((VirtualStream)RespData).ForceAmount = true;
 
-                Context.Request.Keepalive = true;
+                RespData = new BufferedStream(RespData, TransferTuning.HttpServerBufferSize);
+                var transferStarted = DateTime.Now;
+                long responseSent = 0;
+                object progressLock = new object();
+
+                if (responseLength > 0)
+                {
+                    ProgressReporter?.Invoke(new TransferProgressInfo(
+                        Context.Request.Url.Full,
+                        transferStart,
+                        TaskInfo.TotalSize,
+                        0,
+                        responseLength,
+                        transferStarted,
+                        DateTime.Now,
+                        false));
+
+                    RespData = new TransferProgressStream(RespData, read =>
+                    {
+                        TransferProgressInfo ProgressInfo;
+                        lock (progressLock)
+                        {
+                            responseSent += read;
+                            ProgressInfo = new TransferProgressInfo(
+                                Context.Request.Url.Full,
+                                transferStart + responseSent,
+                                TaskInfo.TotalSize,
+                                responseSent,
+                                responseLength,
+                                transferStarted,
+                                DateTime.Now,
+                                false);
+                        }
+
+                        ProgressReporter?.Invoke(ProgressInfo);
+                    });
+                }
+
                 await Context.Response.SendAsync(Context.Response.ContentLength ?? TaskInfo.TotalSize, RespData);
+
+                if (responseLength > 0)
+                {
+                    ProgressReporter?.Invoke(new TransferProgressInfo(
+                        Context.Request.Url.Full,
+                        transferStart + responseLength,
+                        TaskInfo.TotalSize,
+                        responseLength,
+                        responseLength,
+                        transferStarted,
+                        DateTime.Now,
+                        true));
+                }
             }
             finally
             {
@@ -168,6 +244,22 @@ namespace DirectPackageInstaller.Host
                 if (FromPS4)
                     Instances[InstanceID]--;
             }
+        }
+
+        private static long GetRangeStart(HttpRange? Range, long TotalLength)
+        {
+            if (!Range.HasValue)
+                return 0;
+
+            return Range.Value.GetStart(TotalLength);
+        }
+
+        private static long GetRangeLength(HttpRange? Range, long TotalLength)
+        {
+            if (!Range.HasValue)
+                return TotalLength;
+
+            return Range.Value.GetLength(TotalLength);
         }
     }
 }

@@ -170,6 +170,7 @@ namespace DirectPackageInstaller.Host
                 PayloadSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 PayloadSocket.ReceiveTimeout = 3000;
                 PayloadSocket.SendTimeout = 3000;
+                PayloadSocket.NoDelay = true;
 
                 CancellationTokenSource CToken = new CancellationTokenSource();
                 CToken.CancelAfter(3000);
@@ -214,6 +215,7 @@ namespace DirectPackageInstaller.Host
                     if (ServiceSocket == null)
                     {
                         ServiceSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                        ServiceSocket.NoDelay = true;
 
                         if (App.IsAndroid)
                             ServiceSocket.Bind(new IPEndPoint(IPAddress.Parse(PCIP), App.Config.PayloadPort ?? 0));
@@ -265,12 +267,14 @@ namespace DirectPackageInstaller.Host
                     {
                         var ClientSocket = await AcceptConnectionInBackground(CToken.Token);
                         if (ClientSocket == null) throw new NullReferenceException();
+                        ClientSocket.NoDelay = true;
                         Queue.Enqueue(ClientSocket);
                     }
                     else
                     {
                         var ClientSocket = await ServiceSocket.AcceptAsync(CToken.Token);
                         if (ClientSocket == null) throw new NullReferenceException();
+                        ClientSocket.NoDelay = true;
                         Queue.Enqueue(ClientSocket);
                     }
                 }

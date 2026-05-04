@@ -12,7 +12,7 @@ namespace DirectPackageInstaller.IO
         public bool DirectLink { get; private set; } = true;
         public bool SingleConnection => Host?.Limited ?? false;
 
-        public FileHostStream(string Url, int cacheLen = 8192) : base(Url, cacheLen)
+        public FileHostStream(string Url, int cacheLen = TransferTuning.NetworkCacheSize) : base(Url, cacheLen)
         {
             App.WebClient.Proxy = null;
             

@@ -38,7 +38,7 @@ namespace DirectPackageInstaller.IO
         public int Timeout { get; set; }
         public bool KeepAlive { get; set; } = false;
 
-        private const int CacheLen = 1024 * 8;
+        private const int CacheLen = TransferTuning.NetworkCacheSize;
 
         // Cache for short requests.
         private byte[] cache;
@@ -282,7 +282,7 @@ namespace DirectPackageInstaller.IO
                 ResponseStream?.Dispose();
                 ResponseStream = null;
 
-                if (Tries < 3)
+                if (Tries < TransferTuning.NetworkRetryCount)
                 {
                     RefreshUrl?.Invoke();
                     return NetRead(buffer, ref offset, ref count, Tries + 1);
@@ -359,7 +359,7 @@ namespace DirectPackageInstaller.IO
                         ReadResponseInfo(resp);
 
                     ResponseStream = resp.GetResponseStream();
-                    ResponseStream = new BufferedStream(ResponseStream);
+                    ResponseStream = new BufferedStream(ResponseStream, TransferTuning.NetworkBufferSize);
                 }
 
                 int nread = 0;
@@ -392,9 +392,9 @@ namespace DirectPackageInstaller.IO
                 ResponseStream?.Dispose();
                 ResponseStream = null;
 
-                if (Tries < 3)
+                if (Tries < TransferTuning.NetworkRetryCount)
                 {
-                    Thread.Sleep(Tries * 500);
+                    Thread.Sleep(Math.Min((Tries + 1) * 750, 5000));
 
                     RefreshUrl?.Invoke();
                     return NetRead(buffer, ref offset, ref count, Tries + 1);
@@ -410,8 +410,9 @@ namespace DirectPackageInstaller.IO
                 ResponseStream?.Dispose();
                 ResponseStream = null;
 
-                if (Tries < 3)
+                if (Tries < TransferTuning.NetworkRetryCount)
                 {
+                    Thread.Sleep(Math.Min((Tries + 1) * 750, 5000));
                     RefreshUrl?.Invoke();
                     return NetRead(buffer, ref offset, ref count, Tries + 1);
                 }
@@ -552,7 +553,8 @@ namespace DirectPackageInstaller.IO
             {
                 HttpWebRequest request = CreateNewRequest();
                 request.Method = NoHead ? "GET" : "HEAD";
-                request.Timeout = 15000;
+                request.Timeout = TransferTuning.UpstreamConnectTimeoutMs;
+                request.ReadWriteTimeout = TransferTuning.UpstreamReadWriteTimeoutMs;
 
                 request.ServerCertificateValidationCallback = new RemoteCertificateValidationCallback(SllBypass);
 
@@ -594,8 +596,14 @@ namespace DirectPackageInstaller.IO
             request.UserAgent = FileHostBase.UserAgent;
             request.ConnectionGroupName = Guid.NewGuid().ToString();
             request.KeepAlive = false;
+            request.Timeout = Timeout > 0 ? Timeout : TransferTuning.UpstreamConnectTimeoutMs;
+            request.ReadWriteTimeout = Timeout > 0 ? Timeout : TransferTuning.UpstreamReadWriteTimeoutMs;
+            request.AllowReadStreamBuffering = false;
             request.CookieContainer = Cookies;
             request.Proxy = Proxy;
+            request.ServicePoint.ConnectionLimit = Math.Max(request.ServicePoint.ConnectionLimit, 8);
+            request.ServicePoint.UseNagleAlgorithm = false;
+            request.ServicePoint.Expect100Continue = false;
             return request;
         }
 
